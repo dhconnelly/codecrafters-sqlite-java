@@ -4,6 +4,10 @@ import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+// TODO:
+// 1. extract command line parsing
+// 2. extract statement parsing
+
 public class Main {
     public static void main(String[] args) {
         if (args.length < 2) {
@@ -17,16 +21,23 @@ public class Main {
         switch (command) {
             case ".dbinfo" -> {
                 try {
-                    byte[] header = Files.readAllBytes(Path.of(databaseFilePath));
+                    byte[] header = Files
+                            .readAllBytes(Path.of(databaseFilePath));
 
-                    // The page size is stored at the 16th byte offset, using 2 bytes in big-endian
+                    // The page size is stored at the 16th byte offset, using 2
+                    // bytes in big-endian
                     // order.
-                    // '& 0xFFFF' is used to convert the signed short to an unsigned int.
-                    int pageSize = ByteBuffer.wrap(header).order(ByteOrder.BIG_ENDIAN).position(16).getShort() & 0xFFFF;
+                    // '& 0xFFFF' is used to convert the signed short to an
+                    // unsigned int.
+                    int pageSize = ByteBuffer.wrap(header)
+                            .order(ByteOrder.BIG_ENDIAN).position(16).getShort()
+                            & 0xFFFF;
 
-                    // You can use print statements as follows for debugging, they'll be visible
+                    // You can use print statements as follows for debugging,
+                    // they'll be visible
                     // when running tests.
-                    System.out.println("Logs from your program will appear here!");
+                    System.out.println(
+                            "Logs from your program will appear here!");
 
                     // Uncomment this block to pass the first stage
                     // System.out.println("database page size: " + pageSize);
@@ -34,7 +45,8 @@ public class Main {
                     System.out.println("Error reading file: " + e.getMessage());
                 }
             }
-            default -> System.out.println("Missing or invalid command passed: " + command);
+            default -> System.out
+                    .println("Missing or invalid command passed: " + command);
         }
     }
 }
