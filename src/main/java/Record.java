@@ -62,14 +62,13 @@ public class Record {
         return values;
     }
 
-    public sealed interface Value permits NullValue, IntValue, FloatValue, BlobValue, StringValue {}
-
     public static final class FormatException extends Exception {
         public FormatException(String message) {
             super(message);
         }
     }
 
+    public sealed interface Value permits NullValue, IntValue, FloatValue, BlobValue, StringValue {}
     public record NullValue() implements Value {}
     public record IntValue(int value) implements Value {}
     public record FloatValue(double value) implements Value {}

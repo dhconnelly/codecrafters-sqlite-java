@@ -2,6 +2,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.SeekableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Database {
 
@@ -30,17 +32,17 @@ public class Database {
         return new Page(page, pageNumber == 1 ? 100 : 0);
     }
 
-    public int numTables() throws IOException, FormatException,
-                                  Page.FormatException, Record.FormatException {
+    public List<Table> getTables() throws IOException, FormatException, Page.FormatException,
+                                          Record.FormatException {
         var schema = readPage(1);
-        int num = 0;
+        var tables = new ArrayList<Table>();
         for (Record r : schema.readRecords()) {
             var values = r.getValues();
             var value = (Record.StringValue) values.getFirst();
             var type = value.decode(header.encoding);
-            if (type.equals("table")) num++;
+            if (type.equals("table")) tables.add(new Table(this, r));
         }
-        return num;
+        return tables;
     }
 
     private Header readHeader() throws IOException, FormatException {
