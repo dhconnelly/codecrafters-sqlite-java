@@ -36,8 +36,8 @@ public class Database {
     public int numTables() throws IOException, FormatException,
                                   Page.FormatException {
         var schema = readPage(1);
-        System.out.printf("schema page type: %s\n", schema.getType());
-        return 0;
+        
+        return schema.getHeader().numCells();
     }
 
     private Header readHeader() throws IOException, FormatException {
