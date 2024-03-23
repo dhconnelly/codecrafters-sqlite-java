@@ -21,14 +21,14 @@ public class Database {
     public Page readPage(int pageNumber) throws IOException,
                                                 FormatException,
                                                 Page.FormatException {
-        var page = ByteBuffer.allocate(header.pageSize)
-                             .order(ByteOrder.BIG_ENDIAN);
-        int read = file.position(100 + (pageNumber - 1) * header.pageSize)
-                       .read(page);
-        if (read != header.pageSize) {
+        int to = pageNumber * header.pageSize;
+        int from = to - header.pageSize + (pageNumber == 1 ? 100 : 0);
+        var page = ByteBuffer.allocate(to - from).order(ByteOrder.BIG_ENDIAN);
+        int read = file.position(from).read(page);
+        if (read != page.capacity()) {
             throw new FormatException(
-                    String.format("invalid page size: want %d, got %d",
-                                  header.pageSize, read));
+                    "invalid size for page %d: want %d, got %d".formatted(
+                            pageNumber, page.capacity(), read));
         }
         return new Page(page);
     }
