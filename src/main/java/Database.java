@@ -52,7 +52,7 @@ public class Database {
             throw new FormatException("invalid header: must contain 100" +
                                       " bytes");
         }
-        short pageSize = bytes.position(16).getShort();
+        int pageSize = Short.toUnsignedInt(bytes.position(16).getShort());
         int pageCount = bytes.position(28).getInt();
         int n = bytes.position(56).getInt();
         TextEncoding encoding = switch (n) {
@@ -68,7 +68,7 @@ public class Database {
         Utf8, Utf16le, Utf16be
     }
 
-    public record Header(short pageSize, int pageCount, TextEncoding encoding) {
+    public record Header(int pageSize, int pageCount, TextEncoding encoding) {
     }
 
     public static final class FormatException extends Exception {
