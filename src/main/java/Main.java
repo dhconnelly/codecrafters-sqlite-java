@@ -1,19 +1,16 @@
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class Main {
     static void dbinfo(String path) {
         try {
-            // TODO: avoid reading the whole file
-            byte[] header = Files.readAllBytes(Path.of(path));
-            short pageSize = ByteBuffer.wrap(header)
-                                       .order(ByteOrder.BIG_ENDIAN)
-                                       .position(16).getShort();
-            System.out.printf("database page size: %d\n", pageSize);
-        } catch (IOException e) {
+            var db = new Database(Files.newByteChannel(Path.of(path)));
+            var header = db.getHeader();
+            System.out.printf("%-20s %d\n", "database page size:",
+                              header.pageSize());
+            System.out.printf("%-20s %d\n", "database page count:",
+                              header.pageCount());
+        } catch (Exception e) {
             System.out.printf("error reading file: %s\n", e.getMessage());
         }
     }
