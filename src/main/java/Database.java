@@ -21,23 +21,26 @@ public class Database {
     public Page readPage(int pageNumber) throws IOException,
                                                 FormatException,
                                                 Page.FormatException {
-        int to = pageNumber * header.pageSize;
-        int from = to - header.pageSize + (pageNumber == 1 ? 100 : 0);
-        var page = ByteBuffer.allocate(to - from).order(ByteOrder.BIG_ENDIAN);
-        int read = file.position(from).read(page);
+        var page = ByteBuffer.allocate(header.pageSize).order(ByteOrder.BIG_ENDIAN);
+        int read = file.position((pageNumber - 1) * header.pageSize).read(page);
         if (read != page.capacity()) {
             throw new FormatException(
-                    "invalid size for page %d: want %d, got %d".formatted(
-                            pageNumber, page.capacity(), read));
+                    "invalid page size: want %d, got %d".formatted(page.capacity(), read));
         }
-        return new Page(page);
+        return new Page(page, pageNumber == 1 ? 100 : 0);
     }
 
     public int numTables() throws IOException, FormatException,
-                                  Page.FormatException {
+                                  Page.FormatException, Record.FormatException {
         var schema = readPage(1);
-        
-        return schema.getHeader().numCells();
+        int num = 0;
+        for (Record r : schema.readRecords()) {
+            var values = r.getValues();
+            var value = (Record.StringValue) values.getFirst();
+            var type = value.decode(header.encoding);
+            if (type.equals("table")) num++;
+        }
+        return num;
     }
 
     private Header readHeader() throws IOException, FormatException {
@@ -49,10 +52,21 @@ public class Database {
         }
         short pageSize = bytes.position(16).getShort();
         int pageCount = bytes.position(28).getInt();
-        return new Header(pageSize, pageCount);
+        int n = bytes.position(56).getInt();
+        TextEncoding encoding = switch (n) {
+            case 1 -> TextEncoding.Utf8;
+            case 2 -> TextEncoding.Utf16le;
+            case 3 -> TextEncoding.Utf16be;
+            default -> throw new FormatException("invalid text encoding: %d".formatted(n));
+        };
+        return new Header(pageSize, pageCount, encoding);
     }
 
-    public record Header(short pageSize, int pageCount) {
+    public enum TextEncoding {
+        Utf8, Utf16le, Utf16be
+    }
+
+    public record Header(short pageSize, int pageCount, TextEncoding encoding) {
     }
 
     public static final class FormatException extends Exception {
