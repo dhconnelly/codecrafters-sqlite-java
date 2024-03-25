@@ -1,9 +1,18 @@
 package sql;
 
-public class Parser {
-    public Parser(Scanner scanner) {}
+import java.util.Optional;
 
-    public AST statement() {
+public class Parser {
+    private final Scanner scanner;
+
+    public Parser(Scanner scanner) {
+        this.scanner = scanner;
+    }
+
+    public AST statement() throws Scanner.Error {
+        for (Optional<Token> tok; (tok = scanner.next()).isPresent(); ) {
+            System.out.println(tok);
+        }
         return null;
     }
 }

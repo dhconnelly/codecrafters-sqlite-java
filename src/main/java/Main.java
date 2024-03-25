@@ -36,11 +36,16 @@ public class Main {
     }
 
     static void run(String command) {
-        var scanner = new Scanner(command);
-        var parser = new Parser(scanner);
-        var ast = parser.statement();
-        var vm = new VM();
-        vm.evaluate(ast);
+        try {
+            var scanner = new Scanner(command);
+            var parser = new Parser(scanner);
+            var ast = parser.statement();
+            var vm = new VM();
+            vm.evaluate(ast);
+        } catch (Exception e) {
+            System.err.println(e.getMessage());
+            System.exit(1);
+        }
     }
 
     public static void main(String[] args) {
