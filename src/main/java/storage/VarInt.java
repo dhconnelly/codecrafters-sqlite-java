@@ -1,3 +1,5 @@
+package storage;
+
 import java.nio.ByteBuffer;
 
 public record VarInt(int value, int size) {

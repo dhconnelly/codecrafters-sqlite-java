@@ -1,9 +1,14 @@
+package storage;
+
+import sql.Value;
+
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.SeekableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Database {
 
@@ -29,7 +34,7 @@ public class Database {
             throw new FormatException(
                     "invalid page size: want %d, got %d".formatted(page.capacity(), read));
         }
-        return new Page(page, pageNumber == 1 ? 100 : 0);
+        return new Page(this, page, pageNumber == 1 ? 100 : 0);
     }
 
     public List<Table> getTables() throws IOException, FormatException, Page.FormatException,
@@ -38,11 +43,17 @@ public class Database {
         var tables = new ArrayList<Table>();
         for (Record r : schema.readRecords()) {
             var values = r.getValues();
-            var value = (Record.StringValue) values.getFirst();
-            var type = value.decode(header.encoding);
+            var value = (Value.StringValue) values.getFirst();
+            var type = value.data();
             if (type.equals("table")) tables.add(new Table(this, r));
         }
         return tables;
+    }
+
+    public Optional<Table> getTable(String name) throws IOException, FormatException,
+                                                        Page.FormatException,
+                                                        Record.FormatException {
+        return getTables().stream().filter((table) -> table.getName().equals(name)).findFirst();
     }
 
     private Header readHeader() throws IOException, FormatException {
@@ -62,6 +73,14 @@ public class Database {
             default -> throw new FormatException("invalid text encoding: %d".formatted(n));
         };
         return new Header(pageSize, pageCount, encoding);
+    }
+
+    public String getEncoding() {
+        return switch (header.encoding) {
+            case Utf16be -> "UTF-16BE";
+            case Utf16le -> "UTF-16LE";
+            case Utf8 -> "UTF-8";
+        };
     }
 
     public enum TextEncoding {

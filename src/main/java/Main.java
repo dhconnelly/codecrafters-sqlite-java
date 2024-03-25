@@ -1,6 +1,7 @@
 import db.VM;
 import sql.Parser;
 import sql.Scanner;
+import storage.Database;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,12 +36,13 @@ public class Main {
         }
     }
 
-    static void run(String command) {
+    static void run(String path, String command) {
         try {
+            var db = new Database(Files.newByteChannel(Path.of(path)));
             var scanner = new Scanner(command);
             var parser = new Parser(scanner);
             var ast = parser.statement();
-            var vm = new VM();
+            var vm = new VM(db);
             vm.evaluate(ast);
         } catch (Exception e) {
             System.err.println(e.getMessage());
@@ -61,7 +63,7 @@ public class Main {
         switch (command) {
             case ".dbinfo" -> dbinfo(path);
             case ".tables" -> tables(path);
-            default -> run(command);
+            default -> run(path, command);
         }
     }
 }

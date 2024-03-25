@@ -35,7 +35,7 @@ public class Parser {
                 eat(Token.Type.LPAREN);
                 var arg = this.expr();
                 eat(Token.Type.RPAREN);
-                return new AST.FnCall(tok.text(), List.of(arg));
+                return new AST.FnCall(tok.text().toLowerCase(), List.of(arg));
             }
             default -> {
                 throw new Error("parser: invalid expression: %s".formatted(tok.type()));

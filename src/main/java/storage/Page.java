@@ -1,9 +1,12 @@
+package storage;
+
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
 public class Page {
+    private final Database db;
     private final ByteBuffer buf;
     private final Header header;
     private final int base;
@@ -18,7 +21,8 @@ public class Page {
         }
     }
 
-    public Page(ByteBuffer buf, int base) throws FormatException {
+    public Page(Database db, ByteBuffer buf, int base) throws FormatException {
+        this.db = db;
         this.base = base;
         this.buf = buf;
         byte first = buf.position(base).get();
@@ -64,7 +68,7 @@ public class Page {
     public List<Record> readRecords() throws Record.FormatException {
         var records = new ArrayList<Record>();
         for (var cell : readCells()) {
-            records.add(Record.parse(cell.payload()));
+            records.add(Record.parse(db, cell.payload()));
         }
         return records;
     }
