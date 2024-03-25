@@ -1,3 +1,7 @@
+import db.VM;
+import sql.Parser;
+import sql.Scanner;
+
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,6 +35,14 @@ public class Main {
         }
     }
 
+    static void run(String command) {
+        var scanner = new Scanner(command);
+        var parser = new Parser(scanner);
+        var ast = parser.statement();
+        var vm = new VM();
+        vm.evaluate(ast);
+    }
+
     public static void main(String[] args) {
         // TODO: extract command line parsing
         if (args.length < 2) {
@@ -44,7 +56,7 @@ public class Main {
         switch (command) {
             case ".dbinfo" -> dbinfo(path);
             case ".tables" -> tables(path);
-            default -> System.out.printf("invalid command: %s\n", command);
+            default -> run(command);
         }
     }
 }
