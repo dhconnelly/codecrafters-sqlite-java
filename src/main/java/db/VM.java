@@ -17,12 +17,6 @@ public class VM {
         this.db = db;
     }
 
-    public static class Error extends Exception {
-        public Error(String message) {
-            super(message);
-        }
-    }
-
     private List<Value> evaluate(AST.Expr expr, List<Record> rows) throws Error {
         switch (expr) {
             case AST.FnCall(var fn, var args) when fn.equals("count") -> {
@@ -57,10 +51,15 @@ public class VM {
                 var rows = t.rows();
                 var results = evaluate(cols, rows);
                 for (var row : results) {
-                    for (var col : row) System.out.printf("%s ", Value.display(col));
-                    System.out.println();
+                    System.out.println(String.join(" ", row.stream().map(Value::display).toList()));
                 }
             }
+        }
+    }
+
+    public static class Error extends Exception {
+        public Error(String message) {
+            super(message);
         }
     }
 }
