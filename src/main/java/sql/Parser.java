@@ -46,7 +46,7 @@ public class Parser {
 
   public AST.SelectStatement select() throws Scanner.Error, Error {
     eat(Token.Type.SELECT);
-    List<AST.ResultColumn> columns = new ArrayList<>();
+    List<AST.Expr> columns = new ArrayList<>();
     while (!peekIs(Token.Type.FROM)) {
       columns.add(expr());
       if (!peekIs(Token.Type.FROM)) eat(Token.Type.COMMA);
