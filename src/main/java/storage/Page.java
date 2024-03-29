@@ -8,18 +8,11 @@ import java.util.Optional;
 public class Page {
     private final Database db;
     private final ByteBuffer buf;
-    private final Header header;
     private final int base;
-
-    public Header getHeader() {
-        return header;
-    }
-
-    public static final class FormatException extends Exception {
-        public FormatException(String message) {
-            super(message);
-        }
-    }
+    private int headerSize;
+    private Type type;
+    private short numCells;
+    private int contentOffset;
 
     public Page(Database db, ByteBuffer buf, int base) throws FormatException {
         this.db = db;
@@ -40,15 +33,17 @@ public class Page {
         };
         short numCells = buf.position(base + 3).getShort();
         short contentOffset = buf.position(base + 5).getShort();
-        this.header = new Header(headerSize, type, numCells,
-                                 contentOffset == 0 ? 65536 : contentOffset);
+        this.headerSize = headerSize;
+        this.type = type;
+        this.numCells = numCells;
+        this.contentOffset = contentOffset == 0 ? 65536 : contentOffset;
     }
 
     // TODO: stream?
-    public List<TableLeafCell> readCells() {
-        int pointerOffset = base + header.size;
+    private List<TableLeafCell> readCells() {
+        int pointerOffset = base + headerSize;
         var cells = new ArrayList<TableLeafCell>();
-        for (int i = 0; i < header.numCells; i++) {
+        for (int i = 0; i < numCells; i++) {
             int cellOffset = buf.position(pointerOffset + i * 2).getShort();
             var payloadSize = VarInt.parseFrom(buf.position(cellOffset));
             cellOffset += payloadSize.size();
@@ -73,14 +68,14 @@ public class Page {
         return records;
     }
 
-    public enum Type {
-        InteriorIndex, InteriorTable, LeafIndex, LeafTable,
+    private enum Type {InteriorIndex, InteriorTable, LeafIndex, LeafTable}
+
+    public static final class FormatException extends Exception {
+        public FormatException(String message) {
+            super(message);
+        }
     }
 
-    public record TableLeafCell(int rowId, byte[] payload, Optional<Integer> overflowPage) {
-    }
-
-    public record Header(int size, Type type, short numCells,
-                         int contentOffset) {
-    }
+    private record TableLeafCell(int rowId, byte[] payload,
+                                 Optional<Integer> overflowPage) {}
 }
