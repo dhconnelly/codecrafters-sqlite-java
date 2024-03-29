@@ -63,7 +63,7 @@ public class Main {
       var db = new Database(Files.newByteChannel(Path.of(path)));
       var scanner = new Scanner(command);
       var parser = new Parser(scanner);
-      var ast = parser.statement();
+      var ast = parser.select();
       var vm = new VM(db);
       vm.evaluate(ast);
     } catch (Exception e) {

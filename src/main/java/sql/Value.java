@@ -11,7 +11,7 @@ public sealed interface Value {
     return switch (this) {
       case IntValue(var x) -> "%d".formatted(x);
       case StringValue(String x) -> "%s".formatted(x);
-      default -> throw new AssertionError("TODO");
+      default -> throw new AssertionError("unsupported: %s".formatted(this));
     };
   }
 }

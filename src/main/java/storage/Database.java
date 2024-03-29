@@ -1,5 +1,7 @@
 package storage;
 
+import sql.Parser;
+import sql.Scanner;
 import sql.Value;
 
 import java.io.IOException;
@@ -45,7 +47,8 @@ public class Database {
 
   public List<Table> getTables() throws IOException, FormatException,
                                         Page.FormatException,
-                                        Record.FormatException {
+                                        Record.FormatException, Parser.Error,
+                                        Scanner.Error {
     var tables = new ArrayList<Table>();
     for (Record r : getSchema()) {
       var values = r.getValues();
@@ -59,7 +62,9 @@ public class Database {
   public Optional<Table> getTable(String name) throws IOException,
                                                       FormatException,
                                                       Page.FormatException,
-                                                      Record.FormatException {
+                                                      Record.FormatException,
+                                                      Parser.Error,
+                                                      Scanner.Error {
     return getTables().stream().filter((table) -> table.getName().equals(name))
                       .findFirst();
   }
