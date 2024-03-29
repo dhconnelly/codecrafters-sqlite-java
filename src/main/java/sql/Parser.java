@@ -46,10 +46,14 @@ public class Parser {
 
   public AST.SelectStatement select() throws Scanner.Error, Error {
     eat(Token.Type.SELECT);
-    var expr = this.expr();
+    List<AST.ResultColumn> columns = new ArrayList<>();
+    while (!peekIs(Token.Type.FROM)) {
+      columns.add(expr());
+      if (!peekIs(Token.Type.FROM)) eat(Token.Type.COMMA);
+    }
     eat(Token.Type.FROM);
     var table = eat(Token.Type.IDENT);
-    return new AST.SelectStatement(List.of(expr), table.text());
+    return new AST.SelectStatement(columns, table.text());
   }
 
   private AST.ColumnDefinition columnDefinition() throws Error, Scanner.Error {
