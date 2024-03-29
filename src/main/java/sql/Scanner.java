@@ -13,10 +13,8 @@ public class Scanner {
     this.peek = Optional.empty();
   }
 
-  public static class Error extends Exception {
-    public Error(String message) {
-      super(message);
-    }
+  private static boolean isIdentifier(char c) {
+    return Character.isAlphabetic(c) || c == '_';
   }
 
   private Token.Type getType(String text) {
@@ -25,13 +23,10 @@ public class Scanner {
       case "from" -> Token.Type.FROM;
       case "table" -> Token.Type.TABLE;
       case "create" -> Token.Type.CREATE;
+      case "where" -> Token.Type.WHERE;
       default -> Token.Type.IDENT;
     };
     return type;
-  }
-
-  private static boolean isIdentifier(char c) {
-    return Character.isAlphabetic(c) || c == '_';
   }
 
   private Token identifier() {
@@ -46,6 +41,22 @@ public class Scanner {
     return peek;
   }
 
+  private void eat(char c) throws Error {
+    if (s.charAt(pos) != c) {
+      throw new Error("scanner: want %c, got %c".formatted(c, s.charAt(pos)));
+    }
+    ++pos;
+  }
+
+  private Token text() throws Error {
+    eat('\'');
+    int begin = pos;
+    while (pos < s.length() && s.charAt(pos) != '\'') ++pos;
+    String text = s.substring(begin, pos);
+    eat('\'');
+    return new Token(Token.Type.STR, text);
+  }
+
   public Optional<Token> next() throws Error {
     if (peek.isPresent()) {
       var next = peek;
@@ -54,8 +65,16 @@ public class Scanner {
     }
     while (pos < s.length()) {
       Character c = s.charAt(pos);
+      // TODO: clean this up
       switch (c) {
         case ' ', '\n', '\t' -> ++pos;
+        case '\'' -> {
+          return Optional.of(text());
+        }
+        case '=' -> {
+          ++pos;
+          return Optional.of(new Token(Token.Type.EQ, "="));
+        }
         case ',' -> {
           ++pos;
           return Optional.of(new Token(Token.Type.COMMA, ","));
@@ -79,5 +98,11 @@ public class Scanner {
       }
     }
     return Optional.empty();
+  }
+
+  public static class Error extends Exception {
+    public Error(String message) {
+      super(message);
+    }
   }
 }

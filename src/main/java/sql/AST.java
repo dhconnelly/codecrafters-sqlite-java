@@ -1,9 +1,12 @@
 package sql;
 
 import java.util.List;
+import java.util.Optional;
 
 public class AST {
-  public sealed interface Expr permits Star, FnCall, ColumnName {}
+  public sealed interface Literal extends Expr permits StrLiteral {}
+  public record StrLiteral(String s) implements Literal {}
+  public sealed interface Expr permits Star, FnCall, ColumnName, Literal {}
   public sealed interface Statement permits SelectStatement,
       CreateTableStatement {}
   public record ColumnDefinition(String name, List<String> modifiers) {}
@@ -13,5 +16,8 @@ public class AST {
   public record FnCall(String function, List<Expr> args) implements Expr {}
   public record Star() implements Expr {}
   public record SelectStatement(List<Expr> resultColumns,
+                                Optional<Cond> filter,
                                 String table) implements Statement {}
+  public sealed interface Cond permits Equal {}
+  public record Equal(Expr left, Expr right) implements Cond {}
 }

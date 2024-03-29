@@ -68,16 +68,20 @@ public class VM {
     return results;
   }
 
+  private List<Record> filter(List<Record> rows, Optional<AST.Cond> filter) {
+    return rows;
+  }
+
   public void evaluate(AST.Statement statement) throws IOException,
                                                        Database.FormatException, Page.FormatException, Record.FormatException, Error, Parser.Error, Scanner.Error {
     switch (statement) {
       case AST.CreateTableStatement ignored -> {
         throw new Error("table creation not supported");
       }
-      case AST.SelectStatement(var cols, var table) -> {
+      case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
             () -> new Error("no such table: %s".formatted(table)));
-        var rows = t.rows();
+        var rows = filter(t.rows(), cond);
         var results = evaluate(cols, rows, t);
         for (var row : results) {
           System.out.println(

@@ -11,5 +11,8 @@ public record Token(Token.Type type, String text) {
     CREATE,
     TABLE,
     COMMA,
+    WHERE,
+    EQ,
+    STR,
   }
 }

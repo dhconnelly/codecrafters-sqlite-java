@@ -2,6 +2,7 @@ package sql;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Parser {
   private final Scanner scanner;
@@ -26,6 +27,9 @@ public class Parser {
   private AST.Expr expr() throws Scanner.Error, Error {
     Token tok = scanner.next().orElseThrow(Error::unexpectedEof);
     switch (tok.type()) {
+      case Token.Type.STR -> {
+        return new AST.StrLiteral(tok.text());
+      }
       case Token.Type.STAR -> {
         return new AST.Star();
       }
@@ -44,6 +48,22 @@ public class Parser {
     }
   }
 
+  private void eof() throws Error, Scanner.Error {
+    var peeked = scanner.peek();
+    if (peeked.isPresent()) {
+      throw new Error("expected eof, got %s".formatted(peeked.get().type()));
+    }
+  }
+
+  private Optional<AST.Cond> cond() throws Scanner.Error, Error {
+    if (!peekIs(Token.Type.WHERE)) return Optional.empty();
+    eat(Token.Type.WHERE);
+    var left = expr();
+    eat(Token.Type.EQ);
+    var right = expr();
+    return Optional.of(new AST.Equal(left, right));
+  }
+
   public AST.SelectStatement select() throws Scanner.Error, Error {
     eat(Token.Type.SELECT);
     List<AST.Expr> columns = new ArrayList<>();
@@ -53,7 +73,10 @@ public class Parser {
     }
     eat(Token.Type.FROM);
     var table = eat(Token.Type.IDENT);
-    return new AST.SelectStatement(columns, table.text());
+    var filter = cond();
+    System.out.println(filter);
+    eof();
+    return new AST.SelectStatement(columns, filter, table.text());
   }
 
   private AST.ColumnDefinition columnDefinition() throws Error, Scanner.Error {
@@ -76,6 +99,7 @@ public class Parser {
       if (!peekIs(Token.Type.RPAREN)) eat(Token.Type.COMMA);
     }
     eat(Token.Type.RPAREN);
+    eof();
     return new AST.CreateTableStatement(name.text(), columns);
   }
 
