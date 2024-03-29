@@ -21,19 +21,13 @@ public class VM {
     this.db = db;
   }
 
-  private Optional<Value> aggregate(AST.Expr expr, List<Record> rows) {
+  private Value aggregate(AST.Expr expr, List<Record> rows, Table t) throws Error {
     return switch (expr) {
       case AST.FnCall(var fn, var ignored) when fn.equals("count") ->
-          Optional.of(new Value.IntValue(rows.size()));
-      default -> Optional.empty();
+          new Value.IntValue(rows.size());
+      case AST.Expr ignored when rows.isEmpty() -> new Value.NullValue();
+      default -> evaluate(expr, rows.getFirst(), t);
     };
-  }
-
-  private List<ResultColumn> aggregate(List<AST.Expr> columns,
-                                       List<Record> rows) {
-    return columns.stream().map(
-        expr -> aggregate(expr, rows).map(this::resultOf)
-                                     .orElse(resultOf(expr))).toList();
   }
 
   private Value evaluate(AST.Expr expr, Record row, Table t) throws Error {
@@ -49,25 +43,27 @@ public class VM {
     }
   }
 
-  private Value evaluate(ResultColumn col, Record row, Table t) throws Error {
-    return switch (col) {
-      case ExprColumn(var expr) -> evaluate(expr, row, t);
-      case ValueColumn(var val) -> val;
+  private static boolean isAggregation(AST.Expr expr) {
+    return switch (expr) {
+      case AST.FnCall ignored -> true;
+      default -> false;
     };
   }
 
   private List<List<Value>> evaluate(List<AST.Expr> cols, List<Record> rows,
                                      Table t) throws Error {
-    var aggregated = aggregate(cols, rows);
-    var results = new ArrayList<List<Value>>();
-    for (var row : rows) {
-      System.out.printf("evaluating row: %s\n", row);
+    List<List<Value>> results = new ArrayList<>();
+    if (cols.stream().anyMatch(VM::isAggregation)) {
+      // TODO: figure out how to make streams work with exceptions
       List<Value> result = new ArrayList<>();
-      for (var col : aggregated) {
-        System.out.printf("evaluating col: %s\n", col);
-        result.add(evaluate(col, row, t));
-      }
+      for (var col : cols) result.add(aggregate(col, rows, t));
       results.add(result);
+    } else {
+      for (var row : rows) {
+        List<Value> result = new ArrayList<>();
+        for (var col : cols) result.add(evaluate(col, row, t));
+        results.add(result);
+      }
     }
     return results;
   }
@@ -90,14 +86,6 @@ public class VM {
       }
     }
   }
-
-  private sealed interface ResultColumn permits ExprColumn, ValueColumn {}
-  private record ExprColumn(AST.Expr expr) implements ResultColumn {}
-  private record ValueColumn(Value val) implements ResultColumn {}
-
-  private ResultColumn resultOf(AST.Expr expr) {return new ExprColumn(expr);}
-
-  private ResultColumn resultOf(Value val) {return new ValueColumn(val);}
 
   public static class Error extends Exception {
     public Error(String message) {
