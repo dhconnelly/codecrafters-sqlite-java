@@ -21,7 +21,7 @@ public class Parser {
   }
 
   private boolean peekIs(Token.Type type) throws Scanner.Error {
-    return scanner.peek().stream().allMatch(tok -> tok.type() == type);
+    return scanner.peek().stream().anyMatch(tok -> tok.type() == type);
   }
 
   private AST.Expr expr() throws Scanner.Error, Error {
@@ -74,7 +74,6 @@ public class Parser {
     eat(Token.Type.FROM);
     var table = eat(Token.Type.IDENT);
     var filter = cond();
-    System.out.println(filter);
     eof();
     return new AST.SelectStatement(columns, filter, table.text());
   }
