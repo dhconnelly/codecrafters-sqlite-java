@@ -39,6 +39,9 @@ public class VM {
         }
         return row.valueAt(column.get());
       }
+      case AST.StrLiteral(var s) -> {
+        return new Value.StringValue(s);
+      }
       default -> throw new Error("invalid expr: %s".formatted(expr));
     }
   }
@@ -68,8 +71,25 @@ public class VM {
     return results;
   }
 
-  private List<Record> filter(List<Record> rows, Optional<AST.Cond> filter) {
-    return rows;
+  private boolean evaluate(AST.Cond filter, Record row, Table t) throws Error {
+    switch (filter) {
+      case AST.Equal(var left, var right) -> {
+        var leftVal = evaluate(left, row, t);
+        var rightVal = evaluate(right, row, t);
+        return leftVal.equals(rightVal);
+      }
+    }
+  }
+
+  private List<Record> filter(List<Record> rows,
+                              Optional<AST.Cond> maybeFilter, Table t) throws Error {
+    if (maybeFilter.isEmpty()) return rows;
+    var filter = maybeFilter.get();
+    List<Record> results = new ArrayList<>();
+    for (var row : rows) {
+      if (evaluate(filter, row, t)) results.add(row);
+    }
+    return results;
   }
 
   public void evaluate(AST.Statement statement) throws IOException,
@@ -81,7 +101,7 @@ public class VM {
       case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
             () -> new Error("no such table: %s".formatted(table)));
-        var rows = filter(t.rows(), cond);
+        var rows = filter(t.rows(), cond, t);
         var results = evaluate(cols, rows, t);
         for (var row : results) {
           System.out.println(
