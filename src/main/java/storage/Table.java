@@ -21,7 +21,7 @@ public class Table {
     this.metadata = schema;
     this.columns = new HashMap<>();
     var definition = new Parser(
-        new Scanner(schema.valueAt(4).display())).createTable();
+        new Scanner(schema.get(4).display())).createTable();
     for (int i = 0; i < definition.columns().size(); i++) {
       columns.put(definition.columns().get(i).name(), i);
     }
@@ -31,12 +31,20 @@ public class Table {
     return Optional.ofNullable(columns.get(columnName));
   }
 
-  public String getName() {
-    return ((Value.StringValue) metadata.valueAt(1)).data();
+  public String name() {
+    return ((Value.StringValue) metadata.get(1)).data();
   }
 
-  private int rootPage() {
-    return ((Value.IntValue) metadata.valueAt(3)).value();
+  public String type() {
+    return ((Value.StringValue) metadata.get(0)).data();
+  }
+
+  public int rootPage() {
+    return ((Value.IntValue) metadata.get(3)).value();
+  }
+
+  public String schema() {
+    return ((Value.StringValue) metadata.get(4)).data();
   }
 
   public List<Record> rows() throws IOException, Database.FormatException,

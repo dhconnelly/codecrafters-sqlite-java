@@ -2,86 +2,83 @@ import db.VM;
 import sql.Parser;
 import sql.Scanner;
 import storage.Database;
+import storage.Page;
+import storage.Table;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
+import java.util.function.BiConsumer;
 
 public class Main {
-  static void dbinfo(String path) {
+  @SuppressWarnings("ThrowablePrintedToSystemOut")
+  private static void die(Exception e) {
+    System.err.println(e);
+    System.exit(1);
+  }
+
+  private static Database db(String path) throws IOException,
+                                                 Database.FormatException,
+                                                 Page.FormatException,
+                                                 storage.Record.FormatException, Parser.Error, Scanner.Error {
+    return new Database(Files.newByteChannel(Path.of(path)));
+  }
+
+  private static void dbinfo(String path) {
     try {
-      var db = new Database(Files.newByteChannel(Path.of(path)));
-      var header = db.getHeader();
-      System.out.printf("%-20s %d\n", "database page size:",
-                        header.pageSize());
-      System.out.printf("%-20s %d\n", "database page count:",
-                        header.pageCount());
-      var tables = db.getTables();
-      System.out.printf("%-20s %d\n", "number of tables:", tables.size());
+      var db = db(path);
+      BiConsumer<String, Integer> display = (field, val) ->
+          System.out.printf("%-20s %d\n", field, val);
+      display.accept("database page size:", db.pageSize());
+      display.accept("database page count:", db.pageCount());
+      System.out.printf("%-20s %d\n", "number of tables:", db.tables().size());
     } catch (Exception e) {
-      System.err.println(e);
-      System.exit(1);
+      die(e);
     }
   }
 
-  static void tables(String path) {
+  private static void tables(String path) {
     try {
-      var db = new Database(Files.newByteChannel(Path.of(path)));
-      var names = new ArrayList<String>();
-      for (var table : db.getTables()) {
-        if (!table.getName().startsWith("sqlite_"))
-          names.add(table.getName());
-      }
+      var names = db(path).tables().stream().map(Table::name)
+                          .filter(name -> !name.startsWith("sqlite_"))
+                          .toList();
       System.out.println(String.join(" ", names));
     } catch (Exception e) {
-      System.err.println(e);
-      System.exit(1);
+      die(e);
     }
   }
 
-  static void schema(String path) {
+  private static void schema(String path) {
     try {
-      var db = new Database(Files.newByteChannel(Path.of(path)));
-      for (var record : db.getSchema()) {
-        var columns = record.getValues();
-        System.out.printf("table: '%s'\n".formatted(columns.get(1).display()));
-        System.out.printf("type: %s\n".formatted(columns.get(0).display()));
-        System.out.printf(
-            "root page: %s\n".formatted(columns.get(3).display()));
-        System.out.printf(
-            "schema: '%s'\n".formatted(columns.get(4).display()));
+      for (var table : db(path).tables()) {
+        System.out.printf("table: '%s'\n".formatted(table.name()));
+        System.out.printf("type: %s\n".formatted(table.type()));
+        System.out.printf("root page: %s\n".formatted(table.rootPage()));
+        System.out.printf("schema: '%s'\n".formatted(table.schema()));
         System.out.println();
       }
     } catch (Exception e) {
-      System.err.println(e);
-      System.exit(1);
+      die(e);
     }
   }
 
-  static void run(String path, String command) {
+  private static void run(String path, String command) {
     try {
-      var db = new Database(Files.newByteChannel(Path.of(path)));
-      var scanner = new Scanner(command);
-      var parser = new Parser(scanner);
-      var ast = parser.select();
-      var vm = new VM(db);
-      vm.evaluate(ast);
+      var vm = new VM(db(path));
+      var parser = new Parser(new Scanner(command));
+      vm.evaluate(parser.select());
     } catch (Exception e) {
-      System.err.println(e);
-      System.exit(1);
+      die(e);
     }
   }
 
   public static void main(String[] args) {
-    // TODO: extract command line parsing
     if (args.length < 2) {
       System.err.println("usage: sqlite3 <path> <command>");
       System.exit(1);
     }
     String path = args[0];
     String command = args[1];
-
-    // TODO: extract statement parsing
     switch (command) {
       case ".dbinfo" -> dbinfo(path);
       case ".tables" -> tables(path);

@@ -1,8 +1,6 @@
 package db;
 
 import sql.AST;
-import sql.Parser;
-import sql.Scanner;
 import sql.Value;
 import storage.Database;
 import storage.Page;
@@ -34,10 +32,10 @@ public class VM {
     switch (expr) {
       case AST.ColumnName(var name) -> {
         Optional<Integer> column = t.getIndexForColumn(name);
-        if (!column.isPresent()) {
+        if (column.isEmpty()) {
           throw new Error("invalid column: %s".formatted(name));
         }
-        return row.valueAt(column.get());
+        return row.get(column.get());
       }
       case AST.StrLiteral(var s) -> {
         return new Value.StringValue(s);
@@ -47,10 +45,7 @@ public class VM {
   }
 
   private static boolean isAggregation(AST.Expr expr) {
-    return switch (expr) {
-      case AST.FnCall ignored -> true;
-      default -> false;
-    };
+    return expr instanceof AST.FnCall;
   }
 
   private List<List<Value>> evaluate(List<AST.Expr> cols, List<Record> rows,
@@ -93,11 +88,10 @@ public class VM {
   }
 
   public void evaluate(AST.Statement statement) throws IOException,
-                                                       Database.FormatException, Page.FormatException, Record.FormatException, Error, Parser.Error, Scanner.Error {
+                                                       Database.FormatException, Page.FormatException, Record.FormatException, Error {
     switch (statement) {
-      case AST.CreateTableStatement ignored -> {
-        throw new Error("table creation not supported");
-      }
+      case AST.CreateTableStatement ignored ->
+          throw new Error("table creation not supported");
       case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
             () -> new Error("no such table: %s".formatted(table)));

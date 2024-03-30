@@ -1,24 +1,26 @@
 package sql;
 
+import java.util.ArrayDeque;
 import java.util.Optional;
+import java.util.Queue;
 
 public class Scanner {
   private final String s;
   private int pos;
-  private Optional<Token> peek;
+  private final Queue<Token> lookahead;
 
   public Scanner(String s) {
     this.s = s;
     this.pos = 0;
-    this.peek = Optional.empty();
+    this.lookahead = new ArrayDeque<>();
   }
 
   private static boolean isIdentifier(char c) {
     return Character.isAlphabetic(c) || c == '_';
   }
 
-  private Token.Type getType(String text) {
-    var type = switch (text.toLowerCase()) {
+  private static Token.Type getType(String text) {
+    return switch (text.toLowerCase()) {
       case "select" -> Token.Type.SELECT;
       case "from" -> Token.Type.FROM;
       case "table" -> Token.Type.TABLE;
@@ -26,7 +28,29 @@ public class Scanner {
       case "where" -> Token.Type.WHERE;
       default -> Token.Type.IDENT;
     };
-    return type;
+  }
+
+  private static Token.Type getType(char c) throws Error {
+    return switch (c) {
+      case ',' -> Token.Type.COMMA;
+      case '=' -> Token.Type.EQ;
+      case '(' -> Token.Type.LPAREN;
+      case ')' -> Token.Type.RPAREN;
+      case '*' -> Token.Type.STAR;
+      default -> throw new Error("invalid token: %c".formatted(c));
+    };
+  }
+
+  public Optional<Token> peek() throws Error {
+    if (lookahead.isEmpty()) next().ifPresent(lookahead::add);
+    return lookahead.stream().findFirst();
+  }
+
+  private String eat(char want) throws Error {
+    char got = s.charAt(pos);
+    if (got != want) throw new Error("want %c, got %c".formatted(want, got));
+    ++pos;
+    return String.valueOf(want);
   }
 
   private Token identifier() {
@@ -34,18 +58,6 @@ public class Scanner {
     while (pos < s.length() && isIdentifier(s.charAt(pos))) pos++;
     String text = s.substring(begin, pos);
     return new Token(getType(text), text);
-  }
-
-  public Optional<Token> peek() throws Error {
-    if (!peek.isPresent()) peek = next();
-    return peek;
-  }
-
-  private void eat(char c) throws Error {
-    if (s.charAt(pos) != c) {
-      throw new Error("scanner: want %c, got %c".formatted(c, s.charAt(pos)));
-    }
-    ++pos;
   }
 
   private Token text() throws Error {
@@ -58,43 +70,19 @@ public class Scanner {
   }
 
   public Optional<Token> next() throws Error {
-    if (peek.isPresent()) {
-      var next = peek;
-      peek = Optional.empty();
-      return next;
-    }
+    if (!lookahead.isEmpty()) return Optional.of(lookahead.poll());
     while (pos < s.length()) {
-      Character c = s.charAt(pos);
-      // TODO: clean this up
+      char c = s.charAt(pos);
       switch (c) {
         case ' ', '\n', '\t' -> ++pos;
-        case '\'' -> {
-          return Optional.of(text());
+        case '\'' -> {return Optional.of(text());}
+        case '=', ',', '(', ')', '*' -> {
+          return Optional.of(new Token(getType(c), eat(c)));
         }
-        case '=' -> {
-          ++pos;
-          return Optional.of(new Token(Token.Type.EQ, "="));
+        default -> {
+          if (isIdentifier(c)) return Optional.of(identifier());
+          else throw new Error("unknown token: %c".formatted(c));
         }
-        case ',' -> {
-          ++pos;
-          return Optional.of(new Token(Token.Type.COMMA, ","));
-        }
-        case '(' -> {
-          ++pos;
-          return Optional.of(new Token(Token.Type.LPAREN, "("));
-        }
-        case ')' -> {
-          ++pos;
-          return Optional.of(new Token(Token.Type.RPAREN, ")"));
-        }
-        case '*' -> {
-          ++pos;
-          return Optional.of(new Token(Token.Type.STAR, "*"));
-        }
-        case Character first when Character.isAlphabetic(first) -> {
-          return Optional.of(identifier());
-        }
-        default -> throw new Error("scanner: unknown token: %c".formatted(c));
       }
     }
     return Optional.empty();

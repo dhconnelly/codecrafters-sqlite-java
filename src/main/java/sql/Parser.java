@@ -11,11 +11,14 @@ public class Parser {
     this.scanner = scanner;
   }
 
+  private Token advance() throws Scanner.Error, Error {
+    return scanner.next().orElseThrow(() -> new Error("unexpected eof"));
+  }
+
   private Token eat(Token.Type type) throws Scanner.Error, Error {
-    Token tok = scanner.next().orElseThrow(Error::unexpectedEof);
+    Token tok = advance();
     if (tok.type() != type) {
-      throw new Error(
-          "parser: want token %s, got %s".formatted(type, tok.type()));
+      throw new Error("want token %s, got %s".formatted(type, tok.type()));
     }
     return tok;
   }
@@ -24,8 +27,15 @@ public class Parser {
     return scanner.peek().stream().anyMatch(tok -> tok.type() == type);
   }
 
+  private void eof() throws Error, Scanner.Error {
+    var peeked = scanner.peek();
+    if (peeked.isPresent()) {
+      throw new Error("expected eof, got %s".formatted(peeked.get().type()));
+    }
+  }
+
   private AST.Expr expr() throws Scanner.Error, Error {
-    Token tok = scanner.next().orElseThrow(Error::unexpectedEof);
+    Token tok = advance();
     switch (tok.type()) {
       case Token.Type.STR -> {
         return new AST.StrLiteral(tok.text());
@@ -45,13 +55,6 @@ public class Parser {
       }
       default -> throw new Error(
           "parser: invalid expression: %s".formatted(tok.type()));
-    }
-  }
-
-  private void eof() throws Error, Scanner.Error {
-    var peeked = scanner.peek();
-    if (peeked.isPresent()) {
-      throw new Error("expected eof, got %s".formatted(peeked.get().type()));
     }
   }
 
@@ -105,10 +108,6 @@ public class Parser {
   public static class Error extends Exception {
     public Error(String message) {
       super(message);
-    }
-
-    public static Error unexpectedEof() {
-      return new Error("parser: unexpected eof");
     }
   }
 }
