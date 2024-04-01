@@ -1,55 +1,42 @@
 package storage;
 
+import sql.AST;
 import sql.Parser;
 import sql.Scanner;
-import sql.Value;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.stream.IntStream;
 
-// TODO: this should be able to represent the sqlite_schema table too
 public class Table {
-  private final Database db;
-  private final Record metadata;
-  private final Map<String, Integer> columns;
+  private final String name;
+  private final String type;
+  private final Page page;
+  private final String schema;
+  private final AST.CreateTableStatement definition;
 
-  public Table(Database db, Record schema) throws Parser.Error, Scanner.Error {
-    this.db = db;
-    this.metadata = schema;
-    this.columns = new HashMap<>();
-    var definition = new Parser(
-        new Scanner(schema.get(4).display())).createTable();
-    for (int i = 0; i < definition.columns().size(); i++) {
-      columns.put(definition.columns().get(i).name(), i);
-    }
+  public Table(String name, String type, Page page, String schema) throws Parser.Error, Scanner.Error {
+    this.name = name;
+    this.type = type;
+    this.page = page;
+    this.schema = schema;
+    this.definition = new Parser(new Scanner(schema)).createTable();
   }
 
-  public Optional<Integer> getIndexForColumn(String columnName) {
-    return Optional.ofNullable(columns.get(columnName));
+  public OptionalInt getIndexForColumn(String columnName) {
+    var cols = definition.columns();
+    return IntStream.range(0, cols.size())
+                    .filter(i -> cols.get(i).name().equals(columnName))
+                    .findFirst();
   }
 
-  public String name() {
-    return ((Value.StringValue) metadata.get(1)).data();
-  }
+  public String name() {return name;}
 
-  public String type() {
-    return ((Value.StringValue) metadata.get(0)).data();
-  }
+  public String type() {return type;}
 
-  public int rootPage() {
-    return ((Value.IntValue) metadata.get(3)).value();
-  }
+  public String schema() {return schema;}
 
-  public String schema() {
-    return ((Value.StringValue) metadata.get(4)).data();
-  }
-
-  public List<Record> rows() throws IOException, Database.FormatException,
-                                    Page.FormatException,
-                                    Record.FormatException {
-    return db.readPage(rootPage()).readRecords();
+  public List<Record> rows() throws Record.FormatException {
+    return page.readRecords();
   }
 }

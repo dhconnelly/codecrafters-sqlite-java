@@ -1,6 +1,8 @@
 package db;
 
 import sql.AST;
+import sql.Parser;
+import sql.Scanner;
 import sql.Value;
 import storage.Database;
 import storage.Page;
@@ -10,7 +12,7 @@ import storage.Table;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.OptionalInt;
 
 public class VM {
   private final Database db;
@@ -35,11 +37,11 @@ public class VM {
   private Value evaluate(AST.Expr expr, Record row, Table t) throws Error {
     switch (expr) {
       case AST.ColumnName(var name) -> {
-        Optional<Integer> column = t.getIndexForColumn(name);
+        OptionalInt column = t.getIndexForColumn(name);
         if (column.isEmpty()) {
           throw new Error("invalid column: %s".formatted(name));
         }
-        return row.get(column.get());
+        return row.get(column.getAsInt());
       }
       case AST.StrLiteral(var s) -> {
         return new Value.StringValue(s);
@@ -86,7 +88,7 @@ public class VM {
   }
 
   public void evaluate(AST.Statement statement) throws IOException,
-                                                       Database.FormatException, Page.FormatException, Record.FormatException, Error {
+                                                       Database.FormatException, Page.FormatException, Record.FormatException, Error, Parser.Error, Scanner.Error {
     switch (statement) {
       case AST.CreateTableStatement ignored ->
           throw new Error("table creation not supported");

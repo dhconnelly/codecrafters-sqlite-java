@@ -1,6 +1,7 @@
 package sql;
 
 import java.util.Optional;
+import java.util.OptionalInt;
 
 public sealed interface Value {
   record NullValue() implements Value {}
@@ -9,11 +10,15 @@ public sealed interface Value {
   record StringValue(String data) implements Value {}
 
   default Optional<String> asString() {
-    if (this instanceof StringValue(var data)) {
-      return Optional.of(data);
-    } else {
-      return Optional.empty();
-    }
+    return this instanceof StringValue(var data)
+        ? Optional.of(data)
+        : Optional.empty();
+  }
+
+  default OptionalInt asInt() {
+    return this instanceof IntValue(var x)
+        ? OptionalInt.of(x)
+        : OptionalInt.empty();
   }
 
   default String display() {

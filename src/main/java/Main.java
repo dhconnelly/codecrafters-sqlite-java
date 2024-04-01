@@ -53,7 +53,6 @@ public class Main {
       for (var table : db(path).tables()) {
         System.out.printf("table: '%s'\n".formatted(table.name()));
         System.out.printf("type: %s\n".formatted(table.type()));
-        System.out.printf("root page: %s\n".formatted(table.rootPage()));
         System.out.printf("schema: '%s'\n".formatted(table.schema()));
         System.out.println();
       }

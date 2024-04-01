@@ -1,5 +1,6 @@
 package storage;
 
+import sql.AST;
 import sql.Parser;
 import sql.Scanner;
 
@@ -12,32 +13,35 @@ import java.util.List;
 import java.util.Optional;
 
 public class Database {
+  private static final String SCHEMA = """
+          CREATE TABLE sqlite_schema(
+            type text,
+            name text,
+            tbl_name text,
+            rootpage integer,
+            sql text
+          )
+      """;
   private final SeekableByteChannel file;
   private final int pageSize;
   private final int pageCount;
   private final TextEncoding encoding;
-  private final List<Table> tables;
 
   public Database(SeekableByteChannel file) throws IOException,
-                                                   FormatException,
-                                                   Page.FormatException,
-                                                   Record.FormatException,
-                                                   Parser.Error, Scanner.Error {
+                                                   FormatException {
     this.file = file;
     var header = Header.read(file);
     this.pageSize = header.pageSize;
     this.pageCount = header.pageCount;
     this.encoding = header.encoding;
-    this.tables = new ArrayList<>();
-    for (Record r : readPage(1).readRecords()) {
-      if (r.get(0).asString().orElseThrow().equals("table")) {
-        tables.add(new Table(this, r));
-      }
-    }
   }
 
-  public Page readPage(int pageNumber) throws IOException, FormatException,
-                                              Page.FormatException {
+  private static AST.CreateTableStatement parse(String schema) throws Parser.Error, Scanner.Error {
+    return new Parser(new Scanner(schema)).createTable();
+  }
+
+  private Page readPage(int pageNumber) throws IOException, FormatException,
+                                               Page.FormatException {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
     long offset = (long) (pageNumber - 1) * pageSize;
     int read = file.position(offset).read(page);
@@ -48,12 +52,37 @@ public class Database {
     return new Page(this, page, pageNumber == 1 ? 100 : 0);
   }
 
-  public Optional<Table> getTable(String name) {
-    return tables.stream().filter((table) -> table.name().equals(name))
-                 .findFirst();
+  public Table schema() throws IOException, FormatException,
+                               Page.FormatException, Parser.Error,
+                               Scanner.Error {
+    return new Table("sqlite_schema", "table", readPage(1), SCHEMA);
   }
 
-  public List<Table> tables() {return tables;}
+  public List<Table> tables() throws IOException, FormatException,
+                                     Page.FormatException,
+                                     Record.FormatException, Parser.Error,
+                                     Scanner.Error {
+    var tables = new ArrayList<Table>();
+    for (Record r : schema().rows()) {
+      if (r.get(0).asString().orElseThrow().equals("table")) {
+        tables.add(new Table(r.get(1).asString().orElseThrow(),
+                             r.get(0).asString().orElseThrow(),
+                             readPage(r.get(3).asInt().orElseThrow()),
+                             r.get(4).asString().orElseThrow()));
+      }
+    }
+    return tables;
+  }
+
+  public Optional<Table> getTable(String name) throws Parser.Error,
+                                                      Scanner.Error,
+                                                      IOException,
+                                                      FormatException,
+                                                      Page.FormatException,
+                                                      Record.FormatException {
+    return tables().stream().filter((table) -> table.name().equals(name))
+                   .findFirst();
+  }
 
   public String charset() {
     return switch (encoding) {
