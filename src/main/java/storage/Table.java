@@ -5,8 +5,6 @@ import sql.Parser;
 import sql.Scanner;
 
 import java.util.List;
-import java.util.OptionalInt;
-import java.util.stream.IntStream;
 
 public class Table {
   private final String name;
@@ -23,13 +21,6 @@ public class Table {
     this.definition = new Parser(new Scanner(schema)).createTable();
   }
 
-  public OptionalInt getIndexForColumn(String columnName) {
-    var cols = definition.columns();
-    return IntStream.range(0, cols.size())
-                    .filter(i -> cols.get(i).name().equals(columnName))
-                    .findFirst();
-  }
-
   public String name() {return name;}
 
   public String type() {return type;}
@@ -37,6 +28,7 @@ public class Table {
   public String schema() {return schema;}
 
   public List<Record> rows() throws Record.FormatException {
-    return page.readRecords();
+    return page.records().stream()
+               .map(values -> Record.of(definition, values)).toList();
   }
 }

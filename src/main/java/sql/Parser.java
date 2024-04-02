@@ -104,6 +104,10 @@ public class Parser {
     return new AST.CreateTableStatement(name.text(), columns);
   }
 
+  public AST.Statement statement() throws Scanner.Error, Error {
+    return peekIs(Token.Type.CREATE) ? createTable() : select();
+  }
+
   public static class Error extends Exception {
     public Error(String message) {
       super(message);

@@ -1,8 +1,9 @@
-import db.VM;
+import sql.Evaluator;
 import sql.Parser;
 import sql.Scanner;
 import storage.Database;
 import storage.Page;
+import storage.Record;
 import storage.Table;
 
 import java.io.IOException;
@@ -17,16 +18,18 @@ public class Main {
     System.exit(1);
   }
 
-  private static Database db(String path) throws IOException,
-                                                 Database.FormatException,
-                                                 Page.FormatException,
-                                                 storage.Record.FormatException, Parser.Error, Scanner.Error {
+  private static Database loadDB(String path) throws IOException,
+                                                     Database.FormatException,
+                                                     Page.FormatException,
+                                                     Record.FormatException,
+                                                     Parser.Error,
+                                                     Scanner.Error {
     return new Database(Files.newByteChannel(Path.of(path)));
   }
 
   private static void dbinfo(String path) {
     try {
-      var db = db(path);
+      var db = loadDB(path);
       BiConsumer<String, Integer> display = (field, val) ->
           System.out.printf("%-20s %d\n", field, val);
       display.accept("database page size:", db.pageSize());
@@ -39,9 +42,9 @@ public class Main {
 
   private static void tables(String path) {
     try {
-      var names = db(path).tables().stream().map(Table::name)
-                          .filter(name -> !name.startsWith("sqlite_"))
-                          .toList();
+      var names = loadDB(path).tables().stream().map(Table::name)
+                              .filter(name -> !name.startsWith("sqlite_"))
+                              .toList();
       System.out.println(String.join(" ", names));
     } catch (Exception e) {
       die(e);
@@ -50,7 +53,7 @@ public class Main {
 
   private static void schema(String path) {
     try {
-      for (var table : db(path).tables()) {
+      for (var table : loadDB(path).tables()) {
         System.out.printf("table: '%s'\n".formatted(table.name()));
         System.out.printf("type: %s\n".formatted(table.type()));
         System.out.printf("schema: '%s'\n".formatted(table.schema()));
@@ -63,9 +66,9 @@ public class Main {
 
   private static void run(String path, String command) {
     try {
-      var vm = new VM(db(path));
-      var parser = new Parser(new Scanner(command));
-      vm.evaluate(parser.select());
+      var db = loadDB(path);
+      var vm = new Evaluator(db);
+      vm.evaluate(command);
     } catch (Exception e) {
       die(e);
     }

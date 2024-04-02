@@ -1,6 +1,5 @@
 package storage;
 
-import sql.AST;
 import sql.Parser;
 import sql.Scanner;
 
@@ -36,10 +35,6 @@ public class Database {
     this.encoding = header.encoding;
   }
 
-  private static AST.CreateTableStatement parse(String schema) throws Parser.Error, Scanner.Error {
-    return new Parser(new Scanner(schema)).createTable();
-  }
-
   private Page readPage(int pageNumber) throws IOException, FormatException,
                                                Page.FormatException {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
@@ -64,11 +59,11 @@ public class Database {
                                      Scanner.Error {
     var tables = new ArrayList<Table>();
     for (Record r : schema().rows()) {
-      if (r.get(0).asString().orElseThrow().equals("table")) {
-        tables.add(new Table(r.get(1).asString().orElseThrow(),
-                             r.get(0).asString().orElseThrow(),
-                             readPage(r.get(3).asInt().orElseThrow()),
-                             r.get(4).asString().orElseThrow()));
+      if (r.get("type").getString().equals("table")) {
+        tables.add(new Table(r.get("name").getString(),
+                             r.get("type").getString(),
+                             readPage(r.get("rootpage").getInt()),
+                             r.get("sql").getString()));
       }
     }
     return tables;

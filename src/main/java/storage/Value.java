@@ -1,7 +1,4 @@
-package sql;
-
-import java.util.Optional;
-import java.util.OptionalInt;
+package storage;
 
 public sealed interface Value {
   record NullValue() implements Value {}
@@ -9,17 +6,9 @@ public sealed interface Value {
   record BlobValue(byte[] blob) implements Value {}
   record StringValue(String data) implements Value {}
 
-  default Optional<String> asString() {
-    return this instanceof StringValue(var data)
-        ? Optional.of(data)
-        : Optional.empty();
-  }
+  default String getString() {return ((StringValue) this).data;}
 
-  default OptionalInt asInt() {
-    return this instanceof IntValue(var x)
-        ? OptionalInt.of(x)
-        : OptionalInt.empty();
-  }
+  default int getInt() {return ((IntValue) this).value;}
 
   default String display() {
     return switch (this) {
