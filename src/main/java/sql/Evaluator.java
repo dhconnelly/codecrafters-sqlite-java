@@ -1,8 +1,8 @@
 package sql;
 
 import storage.Database;
-import storage.Page;
-import storage.Record;
+import storage.DatabaseException;
+import storage.Table;
 import storage.Value;
 
 import java.io.IOException;
@@ -20,7 +20,8 @@ public class Evaluator {
     return expr instanceof AST.FnCall;
   }
 
-  private Value evaluate(AST.Expr expr, List<Record> rows) throws Error {
+  private Value evaluate(AST.Expr expr, List<Table.Record> rows)
+  throws SQLException {
     return switch (expr) {
       case AST.FnCall(var fn, var ignored) when fn.equals("count") ->
           new Value.IntValue(rows.size());
@@ -29,19 +30,17 @@ public class Evaluator {
     };
   }
 
-  private Value evaluate(AST.Expr expr, Record row) throws Error {
-    switch (expr) {
-      case AST.ColumnName(var name) -> {
-        return row.get(name);
-      }
-      case AST.StrLiteral(var s) -> {
-        return new Value.StringValue(s);
-      }
-      default -> throw new Error("invalid expr: %s".formatted(expr));
-    }
+  private Value evaluate(AST.Expr expr, Table.Record row) throws SQLException {
+    return switch (expr) {
+      case AST.ColumnName(var name) -> row.get(name);
+      case AST.StrLiteral(var s) -> new Value.StringValue(s);
+      default -> throw new SQLException("invalid expr: %s".formatted(expr));
+    };
   }
 
-  private List<List<Value>> evaluate(List<AST.Expr> cols, List<Record> rows) throws Error {
+  private List<List<Value>> evaluate(List<AST.Expr> cols,
+                                     List<Table.Record> rows)
+  throws SQLException {
     List<List<Value>> results = new ArrayList<>();
     if (cols.stream().anyMatch(Evaluator::isAggregation)) {
       // TODO: figure out how to make streams work with exceptions
@@ -58,7 +57,8 @@ public class Evaluator {
     return results;
   }
 
-  private boolean evaluate(AST.Cond filter, Record row) throws Error {
+  private boolean evaluate(AST.Cond filter, Table.Record row)
+  throws SQLException {
     return switch (filter) {
       case AST.Empty ignored -> true;
       case AST.Equal(var left, var right) -> {
@@ -69,24 +69,23 @@ public class Evaluator {
     };
   }
 
-  private List<Record> filter(AST.Cond filter, List<Record> rows) throws Error {
-    List<Record> results = new ArrayList<>();
+  private List<Table.Record> filter(AST.Cond filter, List<Table.Record> rows)
+  throws SQLException {
+    List<Table.Record> results = new ArrayList<>();
     for (var row : rows) {
       if (evaluate(filter, row)) results.add(row);
     }
     return results;
   }
 
-  public void evaluate(AST.Statement statement) throws IOException,
-                                                       Database.FormatException
-      , Page.FormatException, Record.FormatException, Error, Parser.Error,
-                                                       Scanner.Error {
+  public void evaluate(AST.Statement statement)
+  throws IOException, SQLException, DatabaseException {
     switch (statement) {
       case AST.CreateTableStatement ignored ->
-          throw new Error("table creation not supported");
+          throw new SQLException("table creation not supported");
       case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
-            () -> new Error("no such table: %s".formatted(table)));
+            () -> new SQLException("no such table: %s".formatted(table)));
         var results = evaluate(cols, filter(cond, t.rows()));
         for (var row : results) {
           System.out.println(
@@ -96,17 +95,8 @@ public class Evaluator {
     }
   }
 
-  public void evaluate(String statement) throws Scanner.Error, Parser.Error,
-                                                Error, IOException,
-                                                Database.FormatException,
-                                                Page.FormatException,
-                                                Record.FormatException {
+  public void evaluate(String statement)
+  throws SQLException, IOException, DatabaseException {
     evaluate(new Parser(new Scanner(statement)).statement());
-  }
-
-  public static class Error extends Exception {
-    public Error(String message) {
-      super(message);
-    }
   }
 }

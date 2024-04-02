@@ -10,30 +10,33 @@ public class Parser {
     this.scanner = scanner;
   }
 
-  private Token advance() throws Scanner.Error, Error {
-    return scanner.next().orElseThrow(() -> new Error("unexpected eof"));
+  private Token advance() throws SQLException {
+    return scanner.next().orElseThrow(
+        () -> new SQLException("parser: unexpected eof"));
   }
 
-  private Token eat(Token.Type type) throws Scanner.Error, Error {
+  private Token eat(Token.Type type) throws SQLException {
     Token tok = advance();
     if (tok.type() != type) {
-      throw new Error("want token %s, got %s".formatted(type, tok.type()));
+      throw new SQLException(
+          "parser: want token %s, got %s".formatted(type, tok.type()));
     }
     return tok;
   }
 
-  private boolean peekIs(Token.Type type) throws Scanner.Error {
+  private boolean peekIs(Token.Type type) throws SQLException {
     return scanner.peek().stream().anyMatch(tok -> tok.type() == type);
   }
 
-  private void eof() throws Error, Scanner.Error {
+  private void eof() throws SQLException {
     var peeked = scanner.peek();
     if (peeked.isPresent()) {
-      throw new Error("expected eof, got %s".formatted(peeked.get().type()));
+      throw new SQLException(
+          "parser: expected eof, got %s".formatted(peeked.get().type()));
     }
   }
 
-  private AST.Expr expr() throws Scanner.Error, Error {
+  private AST.Expr expr() throws SQLException {
     Token tok = advance();
     switch (tok.type()) {
       case Token.Type.STR -> {
@@ -52,12 +55,12 @@ public class Parser {
           return new AST.ColumnName(tok.text());
         }
       }
-      default -> throw new Error(
+      default -> throw new SQLException(
           "parser: invalid expression: %s".formatted(tok.type()));
     }
   }
 
-  private AST.Cond cond() throws Scanner.Error, Error {
+  private AST.Cond cond() throws SQLException {
     if (!peekIs(Token.Type.WHERE)) return new AST.Empty();
     eat(Token.Type.WHERE);
     var left = expr();
@@ -66,7 +69,7 @@ public class Parser {
     return new AST.Equal(left, right);
   }
 
-  public AST.SelectStatement select() throws Scanner.Error, Error {
+  public AST.SelectStatement select() throws SQLException {
     eat(Token.Type.SELECT);
     List<AST.Expr> columns = new ArrayList<>();
     while (!peekIs(Token.Type.FROM)) {
@@ -80,7 +83,7 @@ public class Parser {
     return new AST.SelectStatement(columns, filter, table.text());
   }
 
-  private AST.ColumnDefinition columnDefinition() throws Error, Scanner.Error {
+  private AST.ColumnDefinition columnDefinition() throws SQLException {
     var name = eat(Token.Type.IDENT);
     var modifiers = new ArrayList<String>();
     while (!peekIs(Token.Type.COMMA) && !peekIs(Token.Type.RPAREN)) {
@@ -89,7 +92,7 @@ public class Parser {
     return new AST.ColumnDefinition(name.text(), modifiers);
   }
 
-  public AST.CreateTableStatement createTable() throws Error, Scanner.Error {
+  public AST.CreateTableStatement createTable() throws SQLException {
     eat(Token.Type.CREATE);
     eat(Token.Type.TABLE);
     var name = eat(Token.Type.IDENT);
@@ -104,13 +107,7 @@ public class Parser {
     return new AST.CreateTableStatement(name.text(), columns);
   }
 
-  public AST.Statement statement() throws Scanner.Error, Error {
+  public AST.Statement statement() throws SQLException {
     return peekIs(Token.Type.CREATE) ? createTable() : select();
-  }
-
-  public static class Error extends Exception {
-    public Error(String message) {
-      super(message);
-    }
   }
 }

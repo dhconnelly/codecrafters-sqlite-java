@@ -30,25 +30,26 @@ public class Scanner {
     };
   }
 
-  private static Token.Type getType(char c) throws Error {
+  private static Token.Type getType(char c) throws SQLException {
     return switch (c) {
       case ',' -> Token.Type.COMMA;
       case '=' -> Token.Type.EQ;
       case '(' -> Token.Type.LPAREN;
       case ')' -> Token.Type.RPAREN;
       case '*' -> Token.Type.STAR;
-      default -> throw new Error("invalid token: %c".formatted(c));
+      default -> throw new SQLException("scanner: bad token: %c".formatted(c));
     };
   }
 
-  public Optional<Token> peek() throws Error {
+  public Optional<Token> peek() throws SQLException {
     if (lookahead.isEmpty()) next().ifPresent(lookahead::add);
     return lookahead.stream().findFirst();
   }
 
-  private String eat(char want) throws Error {
+  private String eat(char want) throws SQLException {
     char got = s.charAt(pos);
-    if (got != want) throw new Error("want %c, got %c".formatted(want, got));
+    if (got != want)
+      throw new SQLException("scanner: want %c, got %c".formatted(want, got));
     ++pos;
     return String.valueOf(want);
   }
@@ -60,7 +61,7 @@ public class Scanner {
     return new Token(getType(text), text);
   }
 
-  private Token text() throws Error {
+  private Token text() throws SQLException {
     eat('\'');
     int begin = pos;
     while (pos < s.length() && s.charAt(pos) != '\'') ++pos;
@@ -69,7 +70,7 @@ public class Scanner {
     return new Token(Token.Type.STR, text);
   }
 
-  public Optional<Token> next() throws Error {
+  public Optional<Token> next() throws SQLException {
     if (!lookahead.isEmpty()) return Optional.of(lookahead.poll());
     while (pos < s.length()) {
       char c = s.charAt(pos);
@@ -81,16 +82,10 @@ public class Scanner {
         }
         default -> {
           if (isIdentifier(c)) return Optional.of(identifier());
-          else throw new Error("unknown token: %c".formatted(c));
+          else throw new SQLException("scanner: bad token: %c".formatted(c));
         }
       }
     }
     return Optional.empty();
-  }
-
-  public static class Error extends Exception {
-    public Error(String message) {
-      super(message);
-    }
   }
 }

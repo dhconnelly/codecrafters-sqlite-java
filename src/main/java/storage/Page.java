@@ -13,7 +13,7 @@ public class Page {
   private final int headerSize;
   private final short numCells;
 
-  public Page(Database db, ByteBuffer buf, int base) throws FormatException {
+  public Page(Database db, ByteBuffer buf, int base) throws DatabaseException {
     this.db = db;
     this.base = base;
     this.buf = buf;
@@ -24,14 +24,14 @@ public class Page {
     };
   }
 
-  private static Type typeOf(byte first) throws FormatException {
+  private static Type typeOf(byte first) throws DatabaseException {
     return switch (first) {
       case 0x02 -> Type.InteriorIndex;
       case 0x05 -> Type.InteriorTable;
       case 0x0a -> Type.LeafIndex;
       case 0x0d -> Type.LeafTable;
       default ->
-          throw new FormatException("invalid page type: %x".formatted(first));
+          throw new DatabaseException("invalid page type: %x".formatted(first));
     };
   }
 
@@ -56,7 +56,8 @@ public class Page {
     return cells;
   }
 
-  private static List<Value> parseRecord(Database db, byte[] payload) throws Record.FormatException {
+  private static List<Value> parseRecord(Database db, byte[] payload)
+  throws DatabaseException {
     var values = new ArrayList<Value>();
     ByteBuffer buf = ByteBuffer.wrap(payload);
     var headerSize = VarInt.parseFrom(buf.position(0));
@@ -86,8 +87,7 @@ public class Page {
         }
         default -> {
           if (n < 12) {
-            throw new Record.FormatException(
-                "invalid serial type: %d".formatted(n));
+            throw new DatabaseException("invalid serial type: %d".formatted(n));
           }
           if (n % 2 == 0) {
             var blob = new byte[(n - 12) / 2];
@@ -101,7 +101,7 @@ public class Page {
             try {
               values.add(new Value.StringValue(new String(data, charset)));
             } catch (UnsupportedEncodingException e) {
-              throw new AssertionError("invalid charset: " + charset);
+              throw new DatabaseException("invalid charset: " + charset, e);
             }
             yield (n - 13) / 2;
           }
@@ -111,7 +111,7 @@ public class Page {
     return values;
   }
 
-  public List<List<Value>> records() throws Record.FormatException {
+  public List<List<Value>> records() throws DatabaseException {
     // TODO: stream with exceptions
     var records = new ArrayList<List<Value>>();
     for (var cell : readCells()) {
@@ -121,12 +121,6 @@ public class Page {
   }
 
   private enum Type {InteriorIndex, InteriorTable, LeafIndex, LeafTable}
-
-  public static final class FormatException extends Exception {
-    public FormatException(String message) {
-      super(message);
-    }
-  }
 
   private record TableLeafCell(int rowId, byte[] payload,
                                Optional<Integer> overflowPage) {}

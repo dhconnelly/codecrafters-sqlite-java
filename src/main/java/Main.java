@@ -1,5 +1,6 @@
 import sql.Evaluator;
 import storage.Database;
+import storage.DatabaseException;
 import storage.Table;
 
 import java.io.IOException;
@@ -8,14 +9,14 @@ import java.nio.file.Path;
 import java.util.function.BiConsumer;
 
 public class Main {
-  @SuppressWarnings("ThrowablePrintedToSystemOut")
+  @SuppressWarnings("CallToPrintStackTrace")
   private static void die(Exception e) {
-    System.err.println(e);
+    e.printStackTrace();
     System.exit(1);
   }
 
-  private static Database loadDB(String path) throws IOException,
-                                                     Database.FormatException {
+  private static Database loadDB(String path)
+  throws IOException, DatabaseException {
     return new Database(Files.newByteChannel(Path.of(path)));
   }
 
