@@ -1,9 +1,5 @@
 import sql.Evaluator;
-import sql.Parser;
-import sql.Scanner;
 import storage.Database;
-import storage.Page;
-import storage.Record;
 import storage.Table;
 
 import java.io.IOException;
@@ -19,11 +15,7 @@ public class Main {
   }
 
   private static Database loadDB(String path) throws IOException,
-                                                     Database.FormatException,
-                                                     Page.FormatException,
-                                                     Record.FormatException,
-                                                     Parser.Error,
-                                                     Scanner.Error {
+                                                     Database.FormatException {
     return new Database(Files.newByteChannel(Path.of(path)));
   }
 
