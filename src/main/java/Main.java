@@ -9,9 +9,11 @@ import java.nio.file.Path;
 import java.util.function.BiConsumer;
 
 public class Main {
-  @SuppressWarnings("CallToPrintStackTrace")
+  private static final System.Logger log = System.getLogger(
+      Main.class.getCanonicalName());
+
   private static void die(Exception e) {
-    e.printStackTrace();
+    log.log(System.Logger.Level.ERROR, "sqlite: fatal error", e);
     System.exit(1);
   }
 
