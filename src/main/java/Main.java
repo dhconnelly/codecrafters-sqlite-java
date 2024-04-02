@@ -20,8 +20,7 @@ public class Main {
   }
 
   private static void dbinfo(String path) {
-    try {
-      var db = loadDB(path);
+    try (var db = loadDB(path)) {
       BiConsumer<String, Integer> display = (field, val) ->
           System.out.printf("%-20s %d\n", field, val);
       display.accept("database page size:", db.pageSize());
@@ -33,10 +32,10 @@ public class Main {
   }
 
   private static void tables(String path) {
-    try {
-      var names = loadDB(path).tables().stream().map(Table::name)
-                              .filter(name -> !name.startsWith("sqlite_"))
-                              .toList();
+    try (var db = loadDB(path)) {
+      var names = db.tables().stream().map(Table::name)
+                    .filter(name -> !name.startsWith("sqlite_"))
+                    .toList();
       System.out.println(String.join(" ", names));
     } catch (Exception e) {
       die(e);
@@ -44,8 +43,8 @@ public class Main {
   }
 
   private static void schema(String path) {
-    try {
-      for (var table : loadDB(path).tables()) {
+    try (var db = loadDB(path)) {
+      for (var table : db.tables()) {
         System.out.printf("table: '%s'\n".formatted(table.name()));
         System.out.printf("type: %s\n".formatted(table.type()));
         System.out.printf("schema: '%s'\n".formatted(table.schema()));
@@ -57,8 +56,7 @@ public class Main {
   }
 
   private static void run(String path, String command) {
-    try {
-      var db = loadDB(path);
+    try (var db = loadDB(path)) {
       var vm = new Evaluator(db);
       vm.evaluate(command);
     } catch (Exception e) {

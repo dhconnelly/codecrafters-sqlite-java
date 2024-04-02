@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-public class Database {
+public class Database implements AutoCloseable {
   private static final String SCHEMA = """
           CREATE TABLE sqlite_schema(
             type text,
@@ -33,6 +33,11 @@ public class Database {
     this.pageSize = header.pageSize;
     this.pageCount = header.pageCount;
     this.encoding = header.encoding;
+  }
+
+  @Override
+  public void close() throws IOException {
+    file.close();
   }
 
   private Page readPage(int pageNumber) throws IOException, FormatException,
