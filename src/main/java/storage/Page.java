@@ -4,6 +4,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Page {
   private final Database db;
@@ -11,16 +12,13 @@ public class Page {
   private final int base;
   private final int headerSize;
   private final short numCells;
-  private final Type type;
 
-  public Page(Database db, ByteBuffer buf, int base)
-  throws DatabaseException {
+  public Page(Database db, ByteBuffer buf, int base) throws DatabaseException {
     this.db = db;
     this.base = base;
     this.buf = buf;
     this.numCells = buf.position(base + 3).getShort();
-    this.type = typeOf(buf.position(base).get());
-    this.headerSize = switch (type) {
+    this.headerSize = switch (typeOf(buf.position(base).get())) {
       case InteriorIndex, InteriorTable -> 12;
       case LeafIndex, LeafTable -> 8;
     };
@@ -37,6 +35,27 @@ public class Page {
     };
   }
 
+  // TODO: stream?
+  private List<TableLeafCell> readCells() {
+    int pointerOffset = base + headerSize;
+    var cells = new ArrayList<TableLeafCell>();
+    for (int i = 0; i < numCells; i++) {
+      int cellOffset = buf.position(pointerOffset + i * 2).getShort();
+      var payloadSize = VarInt.parseFrom(buf.position(cellOffset));
+      cellOffset += payloadSize.size();
+      var rowId = VarInt.parseFrom(buf.position(cellOffset));
+      cellOffset += rowId.size();
+      var payload = new byte[payloadSize.value()];
+      buf.position(cellOffset).get(payload);
+      cellOffset += payloadSize.value();
+      Optional<Integer> overflowPage =
+          cellOffset == buf.limit() ? Optional.empty() : Optional.of(
+              buf.position(cellOffset).getInt());
+      cells.add(new TableLeafCell(rowId.value(), payload, overflowPage));
+    }
+    return cells;
+  }
+
   private static List<Value> parseRecord(Database db, byte[] payload)
   throws DatabaseException {
     var values = new ArrayList<Value>();
@@ -48,7 +67,6 @@ public class Page {
       var serialType = VarInt.parseFrom(buf.position(headerOffset));
       headerOffset += serialType.size();
       int n = serialType.value();
-      // TODO: introduce a SizedValue and simplify this
       contentOffset += switch (n) {
         case 0 -> {
           values.add(new Value.NullValue());
@@ -93,20 +111,6 @@ public class Page {
     return values;
   }
 
-  // TODO: stream?
-  private List<TableLeafCell> readCells() {
-    int pointerOffset = base + headerSize;
-    var cells = new ArrayList<TableLeafCell>();
-    for (int i = 0; i < numCells; i++) {
-      int cellOffset = buf.position(pointerOffset + i * 2).getShort();
-      cells.add(switch (type) {
-        case Type.LeafTable -> TableLeafCell.parse(buf, cellOffset);
-        default -> throw new IllegalArgumentException("TODO");
-      });
-    }
-    return cells;
-  }
-
   public List<List<Value>> records() throws DatabaseException {
     // TODO: stream with exceptions
     var records = new ArrayList<List<Value>>();
@@ -118,15 +122,6 @@ public class Page {
 
   private enum Type {InteriorIndex, InteriorTable, LeafIndex, LeafTable}
 
-  private record TableLeafCell(int rowId, byte[] payload) {
-    static TableLeafCell parse(ByteBuffer buf, int cellOffset) {
-      var payloadSize = VarInt.parseFrom(buf.position(cellOffset));
-      cellOffset += payloadSize.size();
-      var rowId = VarInt.parseFrom(buf.position(cellOffset));
-      cellOffset += rowId.size();
-      var payload = new byte[payloadSize.value()];
-      buf.position(cellOffset).get(payload);
-      return new TableLeafCell(rowId.value(), payload);
-    }
-  }
+  private record TableLeafCell(int rowId, byte[] payload,
+                               Optional<Integer> overflowPage) {}
 }
