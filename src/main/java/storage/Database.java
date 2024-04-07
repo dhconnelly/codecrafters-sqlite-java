@@ -39,7 +39,8 @@ public class Database implements AutoCloseable {
     file.close();
   }
 
-  private Page readPage(int pageNumber) throws IOException, DatabaseException {
+  private TableLeafPage readPage(int pageNumber)
+  throws IOException, DatabaseException {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
     long offset = (long) (pageNumber - 1) * pageSize;
     int read = file.position(offset).read(page);
@@ -47,7 +48,9 @@ public class Database implements AutoCloseable {
       throw new DatabaseException(
           "bad page size: want %d, got %d".formatted(page.capacity(), read));
     }
-    return new Page(this, page, pageNumber == 1 ? 100 : 0);
+    return switch (Page.create(this, page, pageNumber == 1 ? 100 : 0)) {
+      case TableLeafPage leaf -> leaf;
+    };
   }
 
   public Table schema() throws IOException, SQLException, DatabaseException {

@@ -12,11 +12,11 @@ import java.util.Map;
 public class Table {
   private final String name;
   private final String type;
-  private final Page page;
+  private final TableLeafPage page;
   private final String schema;
   private final AST.CreateTableStatement definition;
 
-  public Table(String name, String type, Page page, String schema)
+  public Table(String name, String type, TableLeafPage page, String schema)
   throws SQLException {
     this.name = name;
     this.type = type;
