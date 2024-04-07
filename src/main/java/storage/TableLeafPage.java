@@ -17,9 +17,12 @@ public final class TableLeafPage extends Page<List<Value>> {
   }
 
   @Override
-  protected List<Value> parseRecord(ByteBuffer buf, int cellOffset)
+  protected int numRecords() {return numCells;}
+
+  @Override
+  protected List<Value> parseRecord(int index, ByteBuffer buf)
   throws DatabaseException {
-    var cell = parseCell(buf, cellOffset);
+    var cell = parseCell(buf, cellOffset(index));
     return parseRecord(db, cell.payload);
   }
 

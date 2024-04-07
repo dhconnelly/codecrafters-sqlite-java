@@ -50,6 +50,7 @@ public class Database implements AutoCloseable {
     }
     return switch (Page.create(this, page, pageNumber == 1 ? 100 : 0)) {
       case TableLeafPage leaf -> leaf;
+      default -> throw new IllegalStateException("TODO");
     };
   }
 

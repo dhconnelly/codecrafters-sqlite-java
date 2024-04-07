@@ -4,11 +4,12 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-public sealed abstract class Page<RecordType> permits TableLeafPage {
+public sealed abstract class Page<RecordType>
+    permits TableInteriorPage, TableLeafPage {
   protected final Database db;
   private final ByteBuffer buf;
   private final int base;
-  private final short numCells;
+  protected final short numCells;
 
   public static Page<?> create(Database db, ByteBuffer buf, int base)
   throws DatabaseException {
@@ -16,8 +17,7 @@ public sealed abstract class Page<RecordType> permits TableLeafPage {
     return switch (first) {
       case 0x02 ->
           throw new IllegalArgumentException("implement index interior");
-      case 0x05 ->
-          throw new IllegalArgumentException("implement table interior");
+      case 0x05 -> new TableInteriorPage(db, buf, base);
       case 0x0a -> throw new IllegalArgumentException("implement index leaf");
       case 0x0d -> new TableLeafPage(db, buf, base);
       default ->
@@ -33,18 +33,19 @@ public sealed abstract class Page<RecordType> permits TableLeafPage {
   }
 
   protected abstract int headerSize();
+  protected abstract int numRecords();
 
-  protected abstract RecordType parseRecord(ByteBuffer buf, int cellOffset)
+  protected abstract RecordType parseRecord(int index, ByteBuffer buf)
   throws DatabaseException;
+
+  protected short cellOffset(int index) {
+    return buf.position(base + headerSize() + index * 2).getShort();
+  }
 
   // TODO: stream?
   public List<RecordType> records() throws DatabaseException {
-    int pointerOffset = base + headerSize();
     var records = new ArrayList<RecordType>();
-    for (int i = 0; i < numCells; i++) {
-      int cellOffset = buf.position(pointerOffset + i * 2).getShort();
-      records.add(parseRecord(buf, cellOffset));
-    }
+    for (int i = 0; i < numRecords(); i++) records.add(parseRecord(i, buf));
     return records;
   }
 }
