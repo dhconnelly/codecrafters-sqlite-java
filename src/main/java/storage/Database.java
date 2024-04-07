@@ -50,8 +50,7 @@ public class Database implements AutoCloseable {
   }
 
   public Table schema() throws IOException, SQLException, DatabaseException {
-    return new Table(this, "sqlite_schema", "sqlite_schema", "table",
-                     readPage(1), SCHEMA);
+    return new Table(this, "sqlite_schema", readPage(1), SCHEMA);
   }
 
   public List<Map<String, String>> objects()
@@ -73,8 +72,6 @@ public class Database implements AutoCloseable {
     for (var r : schema().rows()) {
       if (r.get("type").getString().equals("table")) {
         tables.add(new Table(this, r.get("name").getString(),
-                             r.get("tbl_name").getString(),
-                             r.get("type").getString(),
                              readPage(r.get("rootpage").getInt()),
                              r.get("sql").getString()));
       }

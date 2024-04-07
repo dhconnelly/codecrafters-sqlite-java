@@ -14,21 +14,14 @@ import java.util.Map;
 public class Table {
   private final Database db;
   private final String name;
-  private final String table;
-  private final String type;
   private final Page<?> root;
-  private final String schema;
   private final AST.CreateTableStatement definition;
 
-  public Table(Database db, String name, String table, String type,
-               Page<?> root, String schema)
+  public Table(Database db, String name, Page<?> root, String schema)
   throws SQLException {
     this.db = db;
     this.name = name;
-    this.table = table;
-    this.type = type;
     this.root = root;
-    this.schema = schema;
     this.definition = new Parser(new Scanner(schema)).createTable();
   }
 
@@ -39,12 +32,6 @@ public class Table {
   }
 
   public String name() {return name;}
-
-  public String table() {return table;}
-
-  public String type() {return type;}
-
-  public String schema() {return schema;}
 
   private Row parseRow(TableLeafPage.Row row) {
     var record = new HashMap<String, Value>();
