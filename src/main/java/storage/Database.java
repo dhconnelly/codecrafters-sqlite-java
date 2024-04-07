@@ -6,9 +6,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.SeekableByteChannel;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 public class Database implements AutoCloseable {
   private static final String SCHEMA = """
@@ -52,7 +50,21 @@ public class Database implements AutoCloseable {
   }
 
   public Table schema() throws IOException, SQLException, DatabaseException {
-    return new Table(this, "sqlite_schema", "table", readPage(1), SCHEMA);
+    return new Table(this, "sqlite_schema", "sqlite_schema", "table",
+                     readPage(1), SCHEMA);
+  }
+
+  public List<Map<String, String>> objects()
+  throws SQLException, IOException, DatabaseException {
+    var objects = new ArrayList<Map<String, String>>();
+    for (var r : schema().rows()) {
+      var object = new HashMap<String, String>();
+      for (var col : List.of("name", "tbl_name", "type", "sql")) {
+        object.put(col, r.get(col).getString());
+      }
+      objects.add(object);
+    }
+    return objects;
   }
 
   public List<Table> tables()
@@ -60,11 +72,11 @@ public class Database implements AutoCloseable {
     var tables = new ArrayList<Table>();
     for (var r : schema().rows()) {
       if (r.get("type").getString().equals("table")) {
-        tables.add(
-            new Table(this, r.get("name").getString(),
-                      r.get("type").getString(),
-                      readPage(r.get("rootpage").getInt()),
-                      r.get("sql").getString()));
+        tables.add(new Table(this, r.get("name").getString(),
+                             r.get("tbl_name").getString(),
+                             r.get("type").getString(),
+                             readPage(r.get("rootpage").getInt()),
+                             r.get("sql").getString()));
       }
     }
     return tables;

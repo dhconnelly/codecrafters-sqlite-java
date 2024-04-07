@@ -47,10 +47,11 @@ public class Main {
 
   private static void schema(String path) {
     try (var db = loadDB(path)) {
-      for (var table : db.tables()) {
-        System.out.printf("table: '%s'\n".formatted(table.name()));
-        System.out.printf("type: %s\n".formatted(table.type()));
-        System.out.printf("schema: '%s'\n".formatted(table.schema()));
+      for (var object : db.objects()) {
+        for (var entry : object.entrySet()) {
+          System.out.printf(
+              "%s: '%s'\n".formatted(entry.getKey(), entry.getValue()));
+        }
         System.out.println();
       }
     } catch (Exception e) {
