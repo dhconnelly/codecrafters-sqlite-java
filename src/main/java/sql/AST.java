@@ -5,8 +5,8 @@ import java.util.List;
 public class AST {
   public sealed interface Literal extends Expr permits StrLiteral {}
   public sealed interface Expr permits Star, FnCall, ColumnName, Literal {}
-  public sealed interface Statement permits SelectStatement,
-      CreateTableStatement {}
+  public sealed interface Statement permits CreateIndexStatement,
+      CreateTableStatement, SelectStatement {}
   public sealed interface Cond permits Equal, Empty {}
   public record StrLiteral(String s) implements Literal {}
   public record ColumnDefinition(String name, List<String> modifiers) {}
@@ -19,4 +19,6 @@ public class AST {
                                 String table) implements Statement {}
   public record Equal(Expr left, Expr right) implements Cond {}
   public record Empty() implements Cond {}
+  public record CreateIndexStatement(String name, String table,
+                                     List<String> columns) implements Statement {}
 }

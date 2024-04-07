@@ -66,6 +66,23 @@ public class Database implements AutoCloseable {
     return objects;
   }
 
+  public List<Index> indices()
+  throws IOException, DatabaseException, SQLException {
+    var indices = new ArrayList<Index>();
+    for (var r : schema().rows()) {
+      if (r.get("type").getString().equals("index")) {
+        var name = r.get("name").getString();
+        var tableName = r.get("tbl_name").getString();
+        var table = getTable(tableName).orElseThrow(() -> new DatabaseException(
+            "index %s: table does not exist: %s".formatted(name, tableName)));
+        indices.add(new Index(this, name, table,
+                              readPage(r.get("rootpage").getInt()),
+                              r.get("sql").getString()));
+      }
+    }
+    return indices;
+  }
+
   public List<Table> tables()
   throws IOException, SQLException, DatabaseException {
     var tables = new ArrayList<Table>();

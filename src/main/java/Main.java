@@ -59,6 +59,19 @@ public class Main {
     }
   }
 
+  private static void indices(String path) {
+    try (var db = loadDB(path)) {
+      for (var index : db.indices()) {
+        System.out.printf("index: %s\n".formatted(index.name()));
+        System.out.printf("table: %s\n".formatted(index.table().name()));
+        System.out.printf(
+            "fields: %s\n".formatted(index.definition().columns()));
+      }
+    } catch (Exception e) {
+      die(e);
+    }
+  }
+
   private static void run(String path, String command) {
     try (var db = loadDB(path)) {
       var vm = new Evaluator(db);
@@ -78,6 +91,7 @@ public class Main {
     switch (command) {
       case ".dbinfo" -> dbinfo(path);
       case ".tables" -> tables(path);
+      case ".indices" -> indices(path);
       case ".schema" -> schema(path);
       default -> run(path, command);
     }

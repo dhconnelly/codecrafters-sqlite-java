@@ -107,6 +107,22 @@ public class Parser {
     return new AST.CreateTableStatement(name.text(), columns);
   }
 
+  public AST.CreateIndexStatement createIndex() throws SQLException {
+    eat(Token.Type.CREATE);
+    eat(Token.Type.INDEX);
+    var name = eat(Token.Type.IDENT);
+    eat(Token.Type.ON);
+    var table = eat(Token.Type.IDENT);
+    eat(Token.Type.LPAREN);
+    var columns = new ArrayList<String>();
+    while (!peekIs(Token.Type.RPAREN)) {
+      columns.add(eat(Token.Type.IDENT).text());
+      if (!peekIs(Token.Type.RPAREN)) eat(Token.Type.COMMA);
+    }
+    eat(Token.Type.RPAREN);
+    return new AST.CreateIndexStatement(name.text(), table.text(), columns);
+  }
+
   public AST.Statement statement() throws SQLException {
     return peekIs(Token.Type.CREATE) ? createTable() : select();
   }

@@ -26,6 +26,8 @@ public class Scanner {
       case "table" -> Token.Type.TABLE;
       case "create" -> Token.Type.CREATE;
       case "where" -> Token.Type.WHERE;
+      case "index" -> Token.Type.INDEX;
+      case "on" -> Token.Type.ON;
       default -> Token.Type.IDENT;
     };
   }

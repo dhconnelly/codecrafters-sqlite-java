@@ -83,6 +83,8 @@ public class Evaluator {
     switch (statement) {
       case AST.CreateTableStatement ignored ->
           throw new SQLException("table creation not supported");
+      case AST.CreateIndexStatement ignored ->
+          throw new SQLException("index creation not supported");
       case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
             () -> new SQLException("no such table: %s".formatted(table)));
