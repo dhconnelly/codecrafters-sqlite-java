@@ -4,25 +4,10 @@ import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.OptionalInt;
 
 public final class TableLeafPage extends Page<TableLeafPage.Row> {
   public TableLeafPage(Database db, ByteBuffer buf, int base) {
     super(db, buf, base);
-  }
-
-  @Override
-  protected int headerSize() {
-    return 8;
-  }
-
-  @Override
-  protected int numRecords() {return numCells;}
-
-  @Override
-  protected Row parseRecord(int index, ByteBuffer buf)
-  throws DatabaseException {
-    return parseRecord(db, parseCell(buf, cellOffset(index)));
   }
 
   private static Cell parseCell(ByteBuffer buf, int cellOffset) {
@@ -32,13 +17,8 @@ public final class TableLeafPage extends Page<TableLeafPage.Row> {
     cellOffset += rowId.size();
     var payload = new byte[payloadSize.value()];
     buf.position(cellOffset).get(payload);
-    cellOffset += payloadSize.value();
-    // TODO: this should be based on whether it runs into the next offset, not
-    // comparing against the overall buffer limit
-    OptionalInt overflowPage = cellOffset == buf.limit()
-        ? OptionalInt.empty()
-        : OptionalInt.of(buf.position(cellOffset).getInt());
-    return new Cell(rowId.value(), payload, overflowPage);
+    // TODO: overflow pages
+    return new Cell(rowId.value(), payload);
   }
 
   private static Row parseRecord(Database db, Cell cell)
@@ -58,6 +38,10 @@ public final class TableLeafPage extends Page<TableLeafPage.Row> {
             buf.position(contentOffset).get()));
         case 2 -> new SizedValue(2, new Value.IntValue(
             buf.position(contentOffset).getShort()));
+        case 3 -> new SizedValue(3, new Value.IntValue(
+            (buf.position(contentOffset).get() << 16) |
+            buf.position(contentOffset + 1).getShort())
+        );
         case 4 -> new SizedValue(4, new Value.IntValue(
             buf.position(contentOffset).getInt()));
         case 8 -> new SizedValue(0, new Value.IntValue(0));
@@ -88,7 +72,21 @@ public final class TableLeafPage extends Page<TableLeafPage.Row> {
     return new Row(cell.rowId(), values);
   }
 
+  @Override
+  protected int headerSize() {
+    return 8;
+  }
+
+  @Override
+  protected int numRecords() {return numCells;}
+
+  @Override
+  protected Row parseRecord(int index, ByteBuffer buf)
+  throws DatabaseException {
+    return parseRecord(db, parseCell(buf, cellOffset(index)));
+  }
+
   private record SizedValue(int size, Value value) {}
-  private record Cell(int rowId, byte[] payload, OptionalInt overflowPage) {}
+  private record Cell(int rowId, byte[] payload) {}
   public record Row(int rowId, List<Value> values) {}
 }
