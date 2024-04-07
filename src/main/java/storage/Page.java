@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public sealed abstract class Page<RecordType>
-    permits TableInteriorPage, TableLeafPage {
+    permits TableInteriorPage, TableLeafPage, IndexInteriorPage, IndexLeafPage {
   protected final Database db;
   private final ByteBuffer buf;
   private final int base;
@@ -15,10 +15,9 @@ public sealed abstract class Page<RecordType>
   throws DatabaseException {
     byte first = buf.position(base).get();
     return switch (first) {
-      case 0x02 ->
-          throw new IllegalArgumentException("implement index interior");
+      case 0x02 -> new IndexInteriorPage(db, buf, base);
       case 0x05 -> new TableInteriorPage(db, buf, base);
-      case 0x0a -> throw new IllegalArgumentException("implement index leaf");
+      case 0x0a -> new IndexLeafPage(db, buf, base);
       case 0x0d -> new TableLeafPage(db, buf, base);
       default ->
           throw new DatabaseException("invalid page type: %x".formatted(first));

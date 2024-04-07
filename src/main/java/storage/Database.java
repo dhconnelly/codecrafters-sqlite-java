@@ -59,8 +59,8 @@ public class Database implements AutoCloseable {
     var objects = new ArrayList<Map<String, String>>();
     for (var r : schema().rows()) {
       var object = new HashMap<String, String>();
-      for (var col : List.of("name", "tbl_name", "type", "sql")) {
-        object.put(col, r.get(col).getString());
+      for (var col : List.of("name", "tbl_name", "type", "rootpage", "sql")) {
+        object.put(col, "%s".formatted(r.get(col).display()));
       }
       objects.add(object);
     }
@@ -96,6 +96,7 @@ public class Database implements AutoCloseable {
   }
 
   public int pageSize() {return pageSize;}
+
   public int pageCount() {return pageCount;}
 
   private enum TextEncoding {Utf8, Utf16le, Utf16be}

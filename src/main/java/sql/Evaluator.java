@@ -2,7 +2,7 @@ package sql;
 
 import storage.Database;
 import storage.DatabaseException;
-import storage.Row;
+import storage.Table;
 import storage.Value;
 
 import java.io.IOException;
@@ -20,7 +20,7 @@ public class Evaluator {
     return expr instanceof AST.FnCall;
   }
 
-  private Value evaluate(AST.Expr expr, List<Row> rows)
+  private Value evaluate(AST.Expr expr, List<Table.Row> rows)
   throws SQLException {
     return switch (expr) {
       case AST.FnCall(var fn, var ignored) when fn.equals("count") ->
@@ -30,7 +30,7 @@ public class Evaluator {
     };
   }
 
-  private Value evaluate(AST.Expr expr, Row row) throws SQLException {
+  private Value evaluate(AST.Expr expr, Table.Row row) throws SQLException {
     return switch (expr) {
       case AST.ColumnName(var name) -> row.get(name);
       case AST.StrLiteral(var s) -> new Value.StringValue(s);
@@ -39,7 +39,7 @@ public class Evaluator {
   }
 
   private List<List<Value>> evaluate(List<AST.Expr> cols,
-                                     List<Row> rows)
+                                     List<Table.Row> rows)
   throws SQLException {
     List<List<Value>> results = new ArrayList<>();
     if (cols.stream().anyMatch(Evaluator::isAggregation)) {
@@ -57,7 +57,7 @@ public class Evaluator {
     return results;
   }
 
-  private boolean evaluate(AST.Cond filter, Row row)
+  private boolean evaluate(AST.Cond filter, Table.Row row)
   throws SQLException {
     return switch (filter) {
       case AST.Empty ignored -> true;
@@ -69,9 +69,9 @@ public class Evaluator {
     };
   }
 
-  private List<Row> filter(AST.Cond filter, List<Row> rows)
+  private List<Table.Row> filter(AST.Cond filter, List<Table.Row> rows)
   throws SQLException {
-    List<Row> results = new ArrayList<>();
+    List<Table.Row> results = new ArrayList<>();
     for (var row : rows) {
       if (evaluate(filter, row)) results.add(row);
     }

@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Table {
   private final Database db;
@@ -38,8 +39,11 @@ public class Table {
   }
 
   public String name() {return name;}
+
   public String table() {return table;}
+
   public String type() {return type;}
+
   public String schema() {return schema;}
 
   private Row parseRow(TableLeafPage.Row row) {
@@ -64,6 +68,7 @@ public class Table {
           collect(db.readPage(indexedPage.pageNumber()), rows);
         }
       }
+      default -> throw new AssertionError("traversal found non-table page");
     }
   }
 
@@ -71,5 +76,9 @@ public class Table {
     var rows = new ArrayList<Row>();
     collect(root, rows);
     return rows;
+  }
+
+  public record Row(int rowId, Map<String, Value> values) {
+    public Value get(String column) {return values.get(column);}
   }
 }
