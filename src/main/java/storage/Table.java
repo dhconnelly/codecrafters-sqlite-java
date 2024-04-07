@@ -5,43 +5,68 @@ import sql.Parser;
 import sql.SQLException;
 import sql.Scanner;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class Table {
+  private final Database db;
   private final String name;
   private final String type;
-  private final TableLeafPage page;
+  private final Page<?> root;
   private final String schema;
   private final AST.CreateTableStatement definition;
 
-  public Table(String name, String type, TableLeafPage page, String schema)
+  public Table(Database db, String name, String type, Page<?> root,
+               String schema)
   throws SQLException {
+    this.db = db;
     this.name = name;
     this.type = type;
-    this.page = page;
+    this.root = root;
     this.schema = schema;
     this.definition = new Parser(new Scanner(schema)).createTable();
+  }
+
+  private static boolean isIntegerPK(AST.ColumnDefinition col) {
+    var mods = col.modifiers();
+    return mods.contains("integer") && mods.contains("primary") &&
+           mods.contains("key");
   }
 
   public String name() {return name;}
   public String type() {return type;}
   public String schema() {return schema;}
 
-  private Record makeRecord(List<Value> values) {
+  private Row parseRow(TableLeafPage.Row row) {
     var record = new HashMap<String, Value>();
     for (int i = 0; i < definition.columns().size(); i++) {
-      record.put(definition.columns().get(i).name(), values.get(i));
+      var col = definition.columns().get(i);
+      var val = isIntegerPK(col)
+          ? new Value.IntValue(row.rowId())
+          : row.values().get(i);
+      record.put(col.name(), val);
     }
-    return new Record(record);
+    return new Row(row.rowId(), record);
   }
 
-  public List<Record> rows() throws DatabaseException {
-    return page.records().stream().map(this::makeRecord).toList();
+  private void collect(Page<?> page, List<Row> rows)
+  throws DatabaseException, IOException {
+    switch (page) {
+      case TableLeafPage leaf ->
+          leaf.records().stream().map(this::parseRow).forEach(rows::add);
+      case TableInteriorPage interior -> {
+        for (var indexedPage : interior.records()) {
+          collect(db.readPage(indexedPage.pageNumber()), rows);
+        }
+      }
+    }
   }
 
-  public record Record(Map<String, Value> values) {
-    public Value get(String column) {return values.get(column);}
+  public List<Row> rows() throws DatabaseException, IOException {
+    var rows = new ArrayList<Row>();
+    collect(root, rows);
+    return rows;
   }
 }

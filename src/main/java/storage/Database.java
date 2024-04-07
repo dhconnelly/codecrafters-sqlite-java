@@ -39,7 +39,7 @@ public class Database implements AutoCloseable {
     file.close();
   }
 
-  private TableLeafPage readPage(int pageNumber)
+  public Page<?> readPage(int pageNumber)
   throws IOException, DatabaseException {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
     long offset = (long) (pageNumber - 1) * pageSize;
@@ -48,14 +48,11 @@ public class Database implements AutoCloseable {
       throw new DatabaseException(
           "bad page size: want %d, got %d".formatted(page.capacity(), read));
     }
-    return switch (Page.create(this, page, pageNumber == 1 ? 100 : 0)) {
-      case TableLeafPage leaf -> leaf;
-      default -> throw new IllegalStateException("TODO");
-    };
+    return Page.create(this, page, pageNumber == 1 ? 100 : 0);
   }
 
   public Table schema() throws IOException, SQLException, DatabaseException {
-    return new Table("sqlite_schema", "table", readPage(1), SCHEMA);
+    return new Table(this, "sqlite_schema", "table", readPage(1), SCHEMA);
   }
 
   public List<Table> tables()
@@ -64,7 +61,8 @@ public class Database implements AutoCloseable {
     for (var r : schema().rows()) {
       if (r.get("type").getString().equals("table")) {
         tables.add(
-            new Table(r.get("name").getString(), r.get("type").getString(),
+            new Table(this, r.get("name").getString(),
+                      r.get("type").getString(),
                       readPage(r.get("rootpage").getInt()),
                       r.get("sql").getString()));
       }

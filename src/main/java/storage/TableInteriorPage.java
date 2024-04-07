@@ -24,7 +24,7 @@ public final class TableInteriorPage extends Page<IndexedPage> {
                              new IndexedPage.Bounded(cell.rowId),
                              cell.pageNumber());
     } else if (index == numCells) {
-      var cell = parseCell(index, buf);
+      var cell = parseCell(index - 1, buf);
       return new IndexedPage(new IndexedPage.Bounded(cell.rowId),
                              new IndexedPage.Unbounded(),
                              rightPage);
@@ -38,6 +38,7 @@ public final class TableInteriorPage extends Page<IndexedPage> {
   }
 
   private Cell parseCell(int index, ByteBuffer buf) {
+    if (index >= numCells) throw new AssertionError("index < numCells");
     int offset = cellOffset(index);
     int pageNumber = buf.position(offset).getInt();
     var rowId = VarInt.parseFrom(buf.position(offset + 4));

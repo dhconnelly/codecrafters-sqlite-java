@@ -61,13 +61,13 @@ public class Scanner {
     return new Token(getType(text), text);
   }
 
-  private Token text() throws SQLException {
-    eat('\'');
+  private Token text(char delim, Token.Type type) throws SQLException {
+    eat(delim);
     int begin = pos;
-    while (pos < s.length() && s.charAt(pos) != '\'') ++pos;
+    while (pos < s.length() && s.charAt(pos) != delim) ++pos;
     String text = s.substring(begin, pos);
-    eat('\'');
-    return new Token(Token.Type.STR, text);
+    eat(delim);
+    return new Token(type, text);
   }
 
   public Optional<Token> next() throws SQLException {
@@ -76,7 +76,8 @@ public class Scanner {
       char c = s.charAt(pos);
       switch (c) {
         case ' ', '\n', '\t' -> ++pos;
-        case '\'' -> {return Optional.of(text());}
+        case '\'' -> {return Optional.of(text(c, Token.Type.STR));}
+        case '"' -> {return Optional.of(text(c, Token.Type.IDENT));}
         case '=', ',', '(', ')', '*' -> {
           return Optional.of(new Token(getType(c), eat(c)));
         }

@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalInt;
 
-public final class TableLeafPage extends Page<List<Value>> {
+public final class TableLeafPage extends Page<TableLeafPage.Row> {
   public TableLeafPage(Database db, ByteBuffer buf, int base) {
     super(db, buf, base);
   }
@@ -20,10 +20,9 @@ public final class TableLeafPage extends Page<List<Value>> {
   protected int numRecords() {return numCells;}
 
   @Override
-  protected List<Value> parseRecord(int index, ByteBuffer buf)
+  protected Row parseRecord(int index, ByteBuffer buf)
   throws DatabaseException {
-    var cell = parseCell(buf, cellOffset(index));
-    return parseRecord(db, cell.payload);
+    return parseRecord(db, parseCell(buf, cellOffset(index)));
   }
 
   private static Cell parseCell(ByteBuffer buf, int cellOffset) {
@@ -34,16 +33,18 @@ public final class TableLeafPage extends Page<List<Value>> {
     var payload = new byte[payloadSize.value()];
     buf.position(cellOffset).get(payload);
     cellOffset += payloadSize.value();
+    // TODO: this should be based on whether it runs into the next offset, not
+    // comparing against the overall buffer limit
     OptionalInt overflowPage = cellOffset == buf.limit()
         ? OptionalInt.empty()
         : OptionalInt.of(buf.position(cellOffset).getInt());
     return new Cell(rowId.value(), payload, overflowPage);
   }
 
-  private static List<Value> parseRecord(Database db, byte[] payload)
+  private static Row parseRecord(Database db, Cell cell)
   throws DatabaseException {
     var values = new ArrayList<Value>();
-    ByteBuffer buf = ByteBuffer.wrap(payload);
+    ByteBuffer buf = ByteBuffer.wrap(cell.payload);
     var headerSize = VarInt.parseFrom(buf.position(0));
     int headerOffset = headerSize.size();
     int contentOffset = headerSize.value();
@@ -59,6 +60,8 @@ public final class TableLeafPage extends Page<List<Value>> {
             buf.position(contentOffset).getShort()));
         case 4 -> new SizedValue(4, new Value.IntValue(
             buf.position(contentOffset).getInt()));
+        case 8 -> new SizedValue(0, new Value.IntValue(0));
+        case 9 -> new SizedValue(0, new Value.IntValue(1));
         default -> {
           if (n < 12) {
             throw new DatabaseException("invalid serial type: %d".formatted(n));
@@ -82,9 +85,10 @@ public final class TableLeafPage extends Page<List<Value>> {
       values.add(sizedValue.value());
       contentOffset += sizedValue.size();
     }
-    return values;
+    return new Row(cell.rowId(), values);
   }
 
   private record SizedValue(int size, Value value) {}
   private record Cell(int rowId, byte[] payload, OptionalInt overflowPage) {}
+  public record Row(int rowId, List<Value> values) {}
 }
