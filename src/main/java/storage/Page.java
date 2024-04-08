@@ -4,8 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
-public sealed abstract class Page<RecordType>
-    permits TableInteriorPage, TableLeafPage, IndexInteriorPage, IndexLeafPage {
+public sealed abstract class Page<RecordType> permits IndexPage, TablePage {
   protected final Database db;
   private final ByteBuffer buf;
   private final int base;
@@ -15,10 +14,10 @@ public sealed abstract class Page<RecordType>
   throws DatabaseException {
     byte first = buf.position(base).get();
     return switch (first) {
-      case 0x02 -> new IndexInteriorPage(db, buf, base);
-      case 0x05 -> new TableInteriorPage(db, buf, base);
-      case 0x0a -> new IndexLeafPage(db, buf, base);
-      case 0x0d -> new TableLeafPage(db, buf, base);
+      case 0x02 -> new IndexPage.Interior(db, buf, base);
+      case 0x05 -> new TablePage.Interior(db, buf, base);
+      case 0x0a -> new IndexPage.Leaf(db, buf, base);
+      case 0x0d -> new TablePage.Leaf(db, buf, base);
       default ->
           throw new DatabaseException("invalid page type: %x".formatted(first));
     };

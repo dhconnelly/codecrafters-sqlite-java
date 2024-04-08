@@ -65,7 +65,7 @@ public class Main {
         System.out.printf("index: %s\n".formatted(index.name()));
         System.out.printf("table: %s\n".formatted(index.table().name()));
         System.out.printf(
-            "fields: %s\n".formatted(index.definition().columns()));
+            "fields: %s\n".formatted(index.definition().column()));
       }
     } catch (Exception e) {
       die(e);

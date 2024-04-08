@@ -1,13 +1,11 @@
 package sql;
 
-import storage.Database;
-import storage.DatabaseException;
-import storage.Table;
-import storage.Value;
+import storage.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Evaluator {
   private final Database db;
@@ -62,10 +60,18 @@ public class Evaluator {
     return evaluate(filter.column(), row).equals(evaluate(filter.value(), row));
   }
 
+  private Optional<Index> findIndexForFilter(AST.Filter f)
+  throws SQLException, IOException, DatabaseException {
+    // TODO: for multi-column indices we would want to consider column ordering
+    return db.indices().stream()
+             .filter(idx -> idx.definition().column().equals(f.column().name()))
+             .findFirst();
+  }
+
   // TODO: stream not rows
   private List<Table.Row> filter(AST.Filter filter, List<Table.Row> rows)
-  throws SQLException {
-    // TODO: look for an index that can handle this filter
+  throws SQLException, IOException, DatabaseException {
+    Optional<Index> maybeIndex = findIndexForFilter(filter);
     List<Table.Row> results = new ArrayList<>();
     for (var row : rows) {
       if (evaluate(filter, row)) results.add(row);

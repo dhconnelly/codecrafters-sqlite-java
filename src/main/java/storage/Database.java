@@ -37,6 +37,7 @@ public class Database implements AutoCloseable {
     file.close();
   }
 
+  // TODO: create downcast-returning overloads
   public Page<?> readPage(int pageNumber)
   throws IOException, DatabaseException {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
@@ -50,7 +51,7 @@ public class Database implements AutoCloseable {
   }
 
   public Table schema() throws IOException, SQLException, DatabaseException {
-    return new Table(this, "sqlite_schema", readPage(1), SCHEMA);
+    return new Table(this, "sqlite_schema", (TablePage<?>) readPage(1), SCHEMA);
   }
 
   public List<Map<String, String>> objects()
@@ -76,7 +77,8 @@ public class Database implements AutoCloseable {
         var table = getTable(tableName).orElseThrow(() -> new DatabaseException(
             "index %s: table does not exist: %s".formatted(name, tableName)));
         indices.add(new Index(this, name, table,
-                              readPage(r.get("rootpage").getInt()),
+                              (IndexPage<?>) readPage(
+                                  r.get("rootpage").getInt()),
                               r.get("sql").getString()));
       }
     }
@@ -89,7 +91,8 @@ public class Database implements AutoCloseable {
     for (var r : schema().rows()) {
       if (r.get("type").getString().equals("table")) {
         tables.add(new Table(this, r.get("name").getString(),
-                             readPage(r.get("rootpage").getInt()),
+                             (TablePage<?>) readPage(
+                                 r.get("rootpage").getInt()),
                              r.get("sql").getString()));
       }
     }

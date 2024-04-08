@@ -123,13 +123,9 @@ public class Parser {
     eat(Token.Type.ON);
     var table = eat(Token.Type.IDENT);
     eat(Token.Type.LPAREN);
-    var columns = new ArrayList<String>();
-    while (!peekIs(Token.Type.RPAREN)) {
-      columns.add(eat(Token.Type.IDENT).text());
-      if (!peekIs(Token.Type.RPAREN)) eat(Token.Type.COMMA);
-    }
+    var column = eat(Token.Type.IDENT).text();
     eat(Token.Type.RPAREN);
-    return new AST.CreateIndexStatement(name.text(), table.text(), columns);
+    return new AST.CreateIndexStatement(name.text(), table.text(), column);
   }
 
   public AST.Statement statement() throws SQLException {

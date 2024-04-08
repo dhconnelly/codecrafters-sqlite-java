@@ -19,6 +19,7 @@ public class AST {
                                 Optional<Filter> filter,
                                 String table) implements Statement {}
   public record Filter(ColumnName column, Literal value) {}
+  // TODO: handle multi-column indices
   public record CreateIndexStatement(String name, String table,
-                                     List<String> columns) implements Statement {}
+                                     String column) implements Statement {}
 }

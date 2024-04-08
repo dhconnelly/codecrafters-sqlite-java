@@ -14,10 +14,10 @@ import java.util.Map;
 public class Table {
   private final Database db;
   private final String name;
-  private final Page<?> root;
+  private final TablePage<?> root;
   private final AST.CreateTableStatement definition;
 
-  public Table(Database db, String name, Page<?> root, String schema)
+  public Table(Database db, String name, TablePage<?> root, String schema)
   throws SQLException {
     this.db = db;
     this.name = name;
@@ -33,7 +33,7 @@ public class Table {
 
   public String name() {return name;}
 
-  private Row parseRow(TableLeafPage.Row row) {
+  private Row parseRow(TablePage.Leaf.Row row) {
     var record = new HashMap<String, Value>();
     for (int i = 0; i < definition.columns().size(); i++) {
       var col = definition.columns().get(i);
@@ -48,9 +48,9 @@ public class Table {
   private void collect(Page<?> page, List<Row> rows)
   throws DatabaseException, IOException {
     switch (page) {
-      case TableLeafPage leaf ->
+      case TablePage.Leaf leaf ->
           leaf.records().stream().map(this::parseRow).forEach(rows::add);
-      case TableInteriorPage interior -> {
+      case TablePage.Interior interior -> {
         for (var indexedPage : interior.records()) {
           collect(db.readPage(indexedPage.pageNumber()), rows);
         }

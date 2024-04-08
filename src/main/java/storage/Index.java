@@ -12,7 +12,7 @@ public class Index {
   private final Page<?> root;
   private final AST.CreateIndexStatement definition;
 
-  public Index(Database db, String name, Table table, Page<?> root,
+  public Index(Database db, String name, Table table, IndexPage<?> root,
                String schema) throws SQLException {
     this.db = db;
     this.name = name;
@@ -26,4 +26,14 @@ public class Index {
   public Table table() {return table;}
 
   public AST.CreateIndexStatement definition() {return definition;}
+
+  public Range find(String column, Value value) throws SQLException {
+    if (!definition.column().equals(column)) {
+      throw new SQLException(
+          "index %s does not cover column %s".formatted(name, column));
+    }
+    throw new AssertionError("TODO");
+  }
+
+  public record Range(int beginRowId, int endRowId) {}
 }
