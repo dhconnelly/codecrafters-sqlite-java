@@ -45,17 +45,16 @@ public class Table {
     return new Row(row.rowId(), record);
   }
 
-  private void collect(Page<?> page, List<Row> rows)
+  private void collect(TablePage<?> page, List<Row> rows)
   throws DatabaseException, IOException {
     switch (page) {
       case TablePage.Leaf leaf ->
           leaf.records().stream().map(this::parseRow).forEach(rows::add);
       case TablePage.Interior interior -> {
         for (var indexedPage : interior.records()) {
-          collect(db.readPage(indexedPage.pageNumber()), rows);
+          collect(db.tablePage(indexedPage.pageNumber()), rows);
         }
       }
-      default -> throw new AssertionError("traversal found non-table page");
     }
   }
 
