@@ -57,20 +57,15 @@ public class Evaluator {
     return results;
   }
 
-  private boolean evaluate(AST.Cond filter, Table.Row row)
+  private boolean evaluate(AST.Filter filter, Table.Row row)
   throws SQLException {
-    return switch (filter) {
-      case AST.Empty ignored -> true;
-      case AST.Equal(var left, var right) -> {
-        var leftVal = evaluate(left, row);
-        var rightVal = evaluate(right, row);
-        yield leftVal.equals(rightVal);
-      }
-    };
+    return evaluate(filter.column(), row).equals(evaluate(filter.value(), row));
   }
 
-  private List<Table.Row> filter(AST.Cond filter, List<Table.Row> rows)
+  // TODO: stream not rows
+  private List<Table.Row> filter(AST.Filter filter, List<Table.Row> rows)
   throws SQLException {
+    // TODO: look for an index that can handle this filter
     List<Table.Row> results = new ArrayList<>();
     for (var row : rows) {
       if (evaluate(filter, row)) results.add(row);
@@ -88,7 +83,8 @@ public class Evaluator {
       case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
             () -> new SQLException("no such table: %s".formatted(table)));
-        var results = evaluate(cols, filter(cond, t.rows()));
+        var rows = cond.isPresent() ? filter(cond.get(), t.rows()) : t.rows();
+        var results = evaluate(cols, rows);
         for (var row : results) {
           System.out.println(
               String.join("|", row.stream().map(Value::display).toList()));

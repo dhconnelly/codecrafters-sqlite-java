@@ -2,6 +2,7 @@ package sql;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class Parser {
   private final Scanner scanner;
@@ -60,13 +61,21 @@ public class Parser {
     }
   }
 
-  private AST.Cond cond() throws SQLException {
-    if (!peekIs(Token.Type.WHERE)) return new AST.Empty();
+  private Optional<AST.Filter> cond() throws SQLException {
+    if (!peekIs(Token.Type.WHERE)) return Optional.empty();
     eat(Token.Type.WHERE);
-    var left = expr();
+    var left = switch (expr()) {
+      case AST.ColumnName columnName -> columnName;
+      case AST.Expr e ->
+          throw new SQLException("want ColumnName, got %s".formatted(e));
+    };
     eat(Token.Type.EQ);
-    var right = expr();
-    return new AST.Equal(left, right);
+    var right = switch (expr()) {
+      case AST.Literal lit -> lit;
+      case AST.Expr e ->
+          throw new SQLException("want Literal, got %s".formatted(e));
+    };
+    return Optional.of(new AST.Filter(left, right));
   }
 
   public AST.SelectStatement select() throws SQLException {
