@@ -1,5 +1,7 @@
 my Java solution to the CodeCrafters ["Build Your Own SQLite" Challenge](https://codecrafters.io/challenges/sqlite)
 
+status: [complete](https://app.codecrafters.io/users/dhconnelly) 🎉 
+
 prerequisites:
 
 - java
