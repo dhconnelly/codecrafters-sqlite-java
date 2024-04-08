@@ -15,6 +15,7 @@ public sealed interface Value {
     return switch (this) {
       case IntValue i -> (int) (i.value - other.getInt());
       case StringValue s -> s.data.compareTo(other.getString());
+      case NullValue ignored -> Integer.MIN_VALUE;
       default -> throw new IllegalArgumentException(
           "can't compare %s against value: %s".formatted(this, other));
     };
