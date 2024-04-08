@@ -69,14 +69,25 @@ public class Evaluator {
   }
 
   // TODO: stream not rows
-  private List<Table.Row> filter(AST.Filter filter, List<Table.Row> rows)
+  private List<Table.Row> getRows(Table t, AST.Filter filter)
   throws SQLException, IOException, DatabaseException {
     Optional<Index> maybeIndex = findIndexForFilter(filter);
-    List<Table.Row> results = new ArrayList<>();
-    for (var row : rows) {
-      if (evaluate(filter, row)) results.add(row);
+    if (maybeIndex.isPresent()) {
+      var rowIds = maybeIndex.get().find(filter.column().name(),
+                                         Value.of(filter.value()));
+      List<Table.Row> results = new ArrayList<>();
+      for (long rowId : rowIds) {
+        System.out.printf("looking for row %d\n", rowId);
+        t.get(rowId).ifPresent(results::add);
+      }
+      return results;
+    } else {
+      List<Table.Row> results = new ArrayList<>();
+      for (var row : t.rows()) {
+        if (evaluate(filter, row)) results.add(row);
+      }
+      return results;
     }
-    return results;
   }
 
   public void evaluate(AST.Statement statement)
@@ -89,7 +100,7 @@ public class Evaluator {
       case AST.SelectStatement(var cols, var cond, var table) -> {
         var t = db.getTable(table).orElseThrow(
             () -> new SQLException("no such table: %s".formatted(table)));
-        var rows = cond.isPresent() ? filter(cond.get(), t.rows()) : t.rows();
+        var rows = cond.isPresent() ? getRows(t, cond.get()) : t.rows();
         var results = evaluate(cols, rows);
         for (var row : results) {
           System.out.println(

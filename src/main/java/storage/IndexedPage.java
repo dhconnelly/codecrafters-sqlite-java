@@ -1,7 +1,8 @@
 package storage;
 
-public record IndexedPage(Endpoint left, Endpoint right, int pageNumber) {
-  public sealed interface Endpoint permits Unbounded, Bounded {}
-  public record Unbounded() implements Endpoint {}
-  public record Bounded(long endpoint) implements Endpoint {}
+public record IndexedPage<Key>(Endpoint<Key> left, Endpoint<Key> right,
+                               int pageNumber) {
+  public sealed interface Endpoint<Key> permits Unbounded, Bounded {}
+  public record Unbounded<Key>() implements Endpoint<Key> {}
+  public record Bounded<Key>(Key endpoint) implements Endpoint<Key> {}
 }

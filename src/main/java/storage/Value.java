@@ -1,5 +1,7 @@
 package storage;
 
+import sql.AST;
+
 public sealed interface Value {
   record NullValue() implements Value {}
   record IntValue(long value) implements Value {}
@@ -8,6 +10,11 @@ public sealed interface Value {
 
   default String getString() {return ((StringValue) this).data;}
   default long getInt() {return ((IntValue) this).value;}
+
+  static Value of(AST.Literal literal) {
+    if (literal instanceof AST.StrLiteral s) return new StringValue(s.s());
+    throw new IllegalArgumentException("unimplemented");
+  }
 
   default String display() {
     return switch (this) {

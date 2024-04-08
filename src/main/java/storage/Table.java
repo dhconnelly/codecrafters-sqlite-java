@@ -6,10 +6,7 @@ import sql.SQLException;
 import sql.Scanner;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Table {
   private final Database db;
@@ -39,7 +36,7 @@ public class Table {
       var col = definition.columns().get(i);
       var val = isIntegerPK(col)
           ? new Value.IntValue(row.rowId())
-          : row.values().get(i);
+          : row.values().values().get(i);
       record.put(col.name(), val);
     }
     return new Row(row.rowId(), record);
@@ -62,6 +59,11 @@ public class Table {
     var rows = new ArrayList<Row>();
     collect(root, rows);
     return rows;
+  }
+
+  public Optional<Row> get(long rowId) throws IOException, DatabaseException {
+    // TODO: actually look it up
+    return rows().stream().filter(row -> row.rowId == rowId).findFirst();
   }
 
   public record Row(long rowId, Map<String, Value> values) {
