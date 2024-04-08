@@ -21,7 +21,7 @@ public sealed abstract class TablePage<T>
       cellOffset += payloadSize.size();
       var rowId = VarInt.parseFrom(buf.position(cellOffset));
       cellOffset += rowId.size();
-      var payload = new byte[payloadSize.value()];
+      var payload = new byte[(int) payloadSize.value()];
       buf.position(cellOffset).get(payload);
       // TODO: overflow pages
       return new Cell(rowId.value(), payload);
@@ -33,11 +33,11 @@ public sealed abstract class TablePage<T>
       ByteBuffer buf = ByteBuffer.wrap(cell.payload);
       var headerSize = VarInt.parseFrom(buf.position(0));
       int headerOffset = headerSize.size();
-      int contentOffset = headerSize.value();
+      int contentOffset = (int) headerSize.value();
       while (headerOffset < headerSize.value()) {
         var serialType = VarInt.parseFrom(buf.position(headerOffset));
         headerOffset += serialType.size();
-        int n = serialType.value();
+        int n = (int) serialType.value();
         var sizedValue = switch (n) {
           case 0 -> new SizedValue(0, new Value.NullValue());
           case 1 -> new SizedValue(1, new Value.IntValue(
@@ -94,8 +94,8 @@ public sealed abstract class TablePage<T>
     }
 
     private record SizedValue(int size, Value value) {}
-    private record Cell(int rowId, byte[] payload) {}
-    public record Row(int rowId, List<Value> values) {}
+    private record Cell(long rowId, byte[] payload) {}
+    public record Row(long rowId, List<Value> values) {}
   }
 
   static final class Interior extends TablePage<IndexedPage> {
@@ -141,6 +141,6 @@ public sealed abstract class TablePage<T>
       return new Cell(pageNumber, rowId.value());
     }
 
-    private record Cell(int pageNumber, int rowId) {}
+    private record Cell(int pageNumber, long rowId) {}
   }
 }

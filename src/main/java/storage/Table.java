@@ -64,7 +64,7 @@ public class Table {
     return rows;
   }
 
-  public record Row(int rowId, Map<String, Value> values) {
+  public record Row(long rowId, Map<String, Value> values) {
     public Value get(String column) {return values.get(column);}
   }
 }

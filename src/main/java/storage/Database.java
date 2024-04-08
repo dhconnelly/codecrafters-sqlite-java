@@ -86,7 +86,7 @@ public class Database implements AutoCloseable {
         var table = getTable(tableName).orElseThrow(() -> new DatabaseException(
             "index %s: table does not exist: %s".formatted(name, tableName)));
         indices.add(new Index(this, name, table,
-                              indexPage(r.get("rootpage").getInt()),
+                              indexPage((int) r.get("rootpage").getInt()),
                               r.get("sql").getString()));
       }
     }
@@ -100,7 +100,7 @@ public class Database implements AutoCloseable {
       if (r.get("type").getString().equals("table")) {
         tables.add(new Table(this, r.get("name").getString(),
                              (TablePage<?>) readPage(
-                                 r.get("rootpage").getInt()),
+                                 (int) r.get("rootpage").getInt()),
                              r.get("sql").getString()));
       }
     }
