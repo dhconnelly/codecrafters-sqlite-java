@@ -55,6 +55,38 @@ public class Table {
     }
   }
 
+  // TODO: move this into IndexedPage and make its generic type Comparable
+  private static boolean contains(IndexedPage<Long> page, long rowId) {
+    if (page.left() instanceof IndexedPage.Bounded<Long> left &&
+        rowId < left.endpoint()) {
+      return false;
+    }
+    if (page.right() instanceof IndexedPage.Bounded<Long> right &&
+        rowId >= right.endpoint()) {
+      return false;
+    }
+    return true;
+  }
+
+  private Optional<Row> lookup(TablePage<?> page, long rowId)
+  throws DatabaseException, IOException {
+    switch (page) {
+      case TablePage.Interior interior -> {
+        for (var child : interior.records()) {
+          if (contains(child, rowId)) {
+            return lookup(db.tablePage(child.pageNumber()), rowId);
+          }
+        }
+      }
+      case TablePage.Leaf leaf -> {
+        for (var record : leaf.records()) {
+          if (record.rowId() == rowId) return Optional.of(parseRow(record));
+        }
+      }
+    }
+    return Optional.empty();
+  }
+
   public List<Row> rows() throws DatabaseException, IOException {
     var rows = new ArrayList<Row>();
     collect(root, rows);
@@ -62,8 +94,7 @@ public class Table {
   }
 
   public Optional<Row> get(long rowId) throws IOException, DatabaseException {
-    // TODO: actually look it up
-    return rows().stream().filter(row -> row.rowId == rowId).findFirst();
+    return lookup(root, rowId);
   }
 
   public record Row(long rowId, Map<String, Value> values) {

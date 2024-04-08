@@ -10,6 +10,14 @@ public sealed interface Value {
 
   default String getString() {return ((StringValue) this).data;}
   default long getInt() {return ((IntValue) this).value;}
+  default int compareTo(Value other) {
+    // TODO: handle sort order of different types
+    return switch (this) {
+      case IntValue i -> (int) (i.value - other.getInt());
+      case StringValue s -> s.data.compareTo(other.getString());
+      default -> throw new IllegalArgumentException("unimplemented");
+    };
+  }
 
   static Value of(AST.Literal literal) {
     if (literal instanceof AST.StrLiteral s) return new StringValue(s.s());
