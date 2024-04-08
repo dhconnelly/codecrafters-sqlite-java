@@ -77,7 +77,6 @@ public class Evaluator {
                                          Value.of(filter.value()));
       List<Table.Row> results = new ArrayList<>();
       for (long rowId : rowIds) {
-        System.out.printf("looking for row %d\n", rowId);
         t.get(rowId).ifPresent(results::add);
       }
       return results;

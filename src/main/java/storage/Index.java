@@ -6,7 +6,7 @@ import sql.SQLException;
 import sql.Scanner;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class Index {
@@ -37,18 +37,27 @@ public class Index {
     return new Key(record.values(), rowId.getInt());
   }
 
-  // TODO: no
-  void collect(IndexPage<?> page, List<Key> keys)
+  // TODO: push down the filter and avoid a full scan here
+  void collect(IndexPage<?> page, HashSet<Long> rows, Value filter)
   throws DatabaseException, IOException {
     switch (page) {
       case IndexPage.Interior interior -> {
         for (var indexedPage : interior.records()) {
-          collect(db.indexPage(indexedPage.pageNumber()), keys);
+          if (indexedPage.left() instanceof IndexedPage.Bounded<byte[]> key) {
+            var k = parse(key.endpoint());
+            if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
+          }
+          if (indexedPage.right() instanceof IndexedPage.Bounded<byte[]> key) {
+            var k = parse(key.endpoint());
+            if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
+          }
+          collect(db.indexPage(indexedPage.pageNumber()), rows, filter);
         }
       }
       case IndexPage.Leaf leaf -> {
         for (var key : leaf.records()) {
-          keys.add(parse(key));
+          var k = parse(key);
+          if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
         }
       }
     }
@@ -60,15 +69,9 @@ public class Index {
       throw new SQLException(
           "index %s does not cover column %s".formatted(name, column));
     }
-    var keys = new ArrayList<Key>();
-    collect(root, keys);
-    for (var key : keys) {
-      if (key.indexKey.getFirst().equals(value)) {
-        System.out.printf("found %s=%s: row id %d\n", column, value, key.rowId);
-      }
-    }
-    return keys.stream().filter(key -> key.indexKey.getFirst().equals(value))
-               .map(key -> key.rowId).toList();
+    var rows = new HashSet<Long>();
+    collect(root, rows, value);
+    return rows.stream().toList();
   }
 
   private record Key(List<Value> indexKey, long rowId) {}
