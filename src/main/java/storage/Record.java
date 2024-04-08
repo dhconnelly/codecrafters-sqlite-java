@@ -2,6 +2,7 @@ package storage;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,7 +10,7 @@ public record Record(List<Value> values) {
   public static Record parse(Database db, byte[] payload)
   throws DatabaseException {
     var values = new ArrayList<Value>();
-    ByteBuffer buf = ByteBuffer.wrap(payload);
+    ByteBuffer buf = ByteBuffer.wrap(payload).order(ByteOrder.BIG_ENDIAN);
     var headerSize = VarInt.parseFrom(buf.position(0));
     int headerOffset = headerSize.size();
     int contentOffset = (int) headerSize.value();
@@ -24,8 +25,9 @@ public record Record(List<Value> values) {
         case 2 -> new SizedValue(2, new Value.IntValue(
             buf.position(contentOffset).getShort()));
         case 3 -> new SizedValue(3, new Value.IntValue(
-            (buf.position(contentOffset).get() << 16) |
-            buf.position(contentOffset + 1).getShort())
+            (Byte.toUnsignedInt(buf.position(contentOffset).get()) << 16) |
+            (Byte.toUnsignedInt(buf.position(contentOffset + 1).get()) << 8) |
+            (Byte.toUnsignedInt(buf.position(contentOffset + 2).get())))
         );
         case 4 -> new SizedValue(4, new Value.IntValue(
             buf.position(contentOffset).getInt()));
