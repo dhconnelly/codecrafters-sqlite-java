@@ -89,7 +89,7 @@ public class Evaluator {
     }
   }
 
-  public void evaluate(AST.Statement statement)
+  public List<List<Value>> evaluate(AST.Statement statement)
   throws IOException, SQLException, DatabaseException {
     switch (statement) {
       case AST.CreateTableStatement ignored ->
@@ -100,17 +100,13 @@ public class Evaluator {
         var t = db.getTable(table).orElseThrow(
             () -> new SQLException("no such table: %s".formatted(table)));
         var rows = cond.isPresent() ? getRows(t, cond.get()) : t.rows();
-        var results = evaluate(cols, rows);
-        for (var row : results) {
-          System.out.println(
-              String.join("|", row.stream().map(Value::display).toList()));
-        }
+        return evaluate(cols, rows);
       }
     }
   }
 
-  public void evaluate(String statement)
+  public List<List<Value>> evaluate(String statement)
   throws SQLException, IOException, DatabaseException {
-    evaluate(new Parser(new Scanner(statement)).statement());
+    return evaluate(new Parser(new Scanner(statement)).statement());
   }
 }

@@ -2,6 +2,7 @@ import sql.Evaluator;
 import storage.Database;
 import storage.DatabaseException;
 import storage.Table;
+import storage.Value;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -75,7 +76,11 @@ public class Main {
   private static void run(String path, String command) {
     try (var db = loadDB(path)) {
       var vm = new Evaluator(db);
-      vm.evaluate(command);
+      var results = vm.evaluate(command);
+      for (var row : results) {
+        System.out.println(
+            String.join("|", row.stream().map(Value::display).toList()));
+      }
     } catch (Exception e) {
       die(e);
     }
