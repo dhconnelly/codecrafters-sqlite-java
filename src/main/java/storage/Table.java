@@ -62,7 +62,7 @@ public class Table {
       return false;
     }
     if (page.right() instanceof IndexedPage.Bounded<Long> right &&
-        rowId >= right.endpoint()) {
+        rowId > right.endpoint()) {
       return false;
     }
     return true;

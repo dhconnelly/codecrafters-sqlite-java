@@ -77,7 +77,8 @@ public class Evaluator {
                                          Value.of(filter.value()));
       List<Table.Row> results = new ArrayList<>();
       for (long rowId : rowIds) {
-        t.get(rowId).ifPresent(results::add);
+        results.add(t.get(rowId).orElseThrow(() -> new AssertionError(
+            "row not found in table for indexed id %d".formatted(rowId))));
       }
       return results;
     } else {
