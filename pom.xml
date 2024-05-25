@@ -13,7 +13,7 @@
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>21</java.version>
-        <mainClass>database.Main</mainClass>
+        <mainClass>database.Database</mainClass>
     </properties>
 
     <dependencyManagement>

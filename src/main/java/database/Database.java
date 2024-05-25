@@ -12,13 +12,13 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class Main implements AutoCloseable {
+public class Database implements AutoCloseable {
   private static final System.Logger log = System.getLogger(
-      Main.class.getCanonicalName());
+      Database.class.getCanonicalName());
 
   private final SeekableByteChannel f;
 
-  private Main(SeekableByteChannel f) {
+  private Database(SeekableByteChannel f) {
     this.f = f;
   }
 
@@ -80,7 +80,7 @@ public class Main implements AutoCloseable {
 
   private static void run(String path, String command) {
     try (var f = Files.newByteChannel(Path.of(path))) {
-      var db = new Main(f);
+      var db = new Database(f);
       switch (command) {
         case ".dbinfo" -> db.dbinfo();
         case ".tables" -> db.tables();
