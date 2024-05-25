@@ -103,7 +103,8 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   }
 
   public static final class TableInteriorPage extends InteriorPage<Long> implements TablePage {
-    TableInteriorPage(StorageEngine storage, ByteBuffer buf, int base) {
+    protected TableInteriorPage(StorageEngine storage, ByteBuffer buf,
+                                int base) {
       super(storage, buf, base);
     }
 
@@ -138,7 +139,8 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   }
 
   public static final class IndexInteriorPage extends InteriorPage<Index.Key> implements IndexPage {
-    IndexInteriorPage(StorageEngine storage, ByteBuffer buf, int base) {
+    protected IndexInteriorPage(StorageEngine storage, ByteBuffer buf,
+                                int base) {
       super(storage, buf, base);
     }
 
@@ -195,7 +197,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   }
 
   protected abstract int headerSize();
-  public abstract int numRecords();
+  protected abstract int numRecords();
 
   protected abstract T parseRecord(int index, ByteBuffer buf)
   throws StorageException;
@@ -211,5 +213,5 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     return records;
   }
 
-  public record Row(long rowId, Record values) {}
+  record Row(long rowId, Record values) {}
 }
