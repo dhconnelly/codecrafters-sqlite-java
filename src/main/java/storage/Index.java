@@ -29,31 +29,10 @@ public class Index {
     this.definition = new Parser(new Scanner(schema)).createIndex();
   }
 
-  private record Key(List<Value> indexKey, long rowId) {}
-
-  private Key parse(byte[] payload) throws StorageException {
-    var record = Record.parse(payload, storage.getCharset());
-    var rowId = record.values().removeLast();
-    return new Key(record.values(), rowId.getInt());
-  }
-
-  private IndexRange.Endpoint<Key> parse(IndexRange.Endpoint<byte[]> raw)
-  throws StorageException {
-    return switch (raw) {
-      case IndexRange.Unbounded<byte[]> ignored -> new IndexRange.Unbounded<>();
-      case IndexRange.Bounded<byte[]> e ->
-          new IndexRange.Bounded<>(parse(e.endpoint()));
-    };
-  }
-
-  private IndexRange<Key> parse(IndexRange<byte[]> raw)
-  throws StorageException {
-    return new IndexRange<>(parse(raw.left()), parse(raw.right()),
-                            raw.pageNumber());
-  }
+  public record Key(List<Value> indexKey, long rowId) {}
 
   // TODO: move this into IndexedPage and make its generic type Comparable
-  private static boolean contains(IndexRange<Key> page, Value value) {
+  private static boolean contains(Pointer<Key> page, Value value) {
     // TODO: handle different collating functions
     Optional<Value> left = page.left().get()
                                .map(key -> key.indexKey.getFirst());
@@ -72,8 +51,7 @@ public class Index {
   throws StorageException, IOException {
     switch (page) {
       case Page.IndexInteriorPage interior -> {
-        for (var encodedIndexedPage : interior.records()) {
-          var indexedPage = parse(encodedIndexedPage);
+        for (var indexedPage : interior.records()) {
           if (!contains(indexedPage, filter)) continue;
           indexedPage.left().get().ifPresent(k -> {
             if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
@@ -86,8 +64,7 @@ public class Index {
         }
       }
       case Page.IndexLeafPage leaf -> {
-        for (var key : leaf.records()) {
-          var k = parse(key);
+        for (var k : leaf.records()) {
           if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
         }
       }

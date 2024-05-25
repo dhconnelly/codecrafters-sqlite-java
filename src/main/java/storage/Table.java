@@ -58,12 +58,12 @@ public class Table {
   }
 
   // TODO: move this into IndexedPage and make its generic type Comparable
-  private static boolean contains(IndexRange<Long> page, long rowId) {
-    if (page.left() instanceof IndexRange.Bounded<Long> left &&
+  private static boolean contains(Pointer<Long> page, long rowId) {
+    if (page.left() instanceof Pointer.Bounded<Long> left &&
         rowId < left.endpoint()) {
       return false;
     }
-    if (page.right() instanceof IndexRange.Bounded<Long> right &&
+    if (page.right() instanceof Pointer.Bounded<Long> right &&
         rowId > right.endpoint()) {
       return false;
     }

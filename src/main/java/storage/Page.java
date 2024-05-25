@@ -30,7 +30,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     public int numRecords() {return numCells;}
   }
 
-  public static sealed abstract class InteriorPage<T> extends Page<IndexRange<T>> permits TableInteriorPage,
+  public static sealed abstract class InteriorPage<T> extends Page<Pointer<T>> permits TableInteriorPage,
       IndexInteriorPage {
     private final int rightPage;
 
@@ -55,26 +55,28 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
       }
     }
 
-    protected abstract Cell<T> parseCell(int index, ByteBuffer buf);
+    protected abstract Cell<T> parseCell(int index, ByteBuffer buf)
+    throws StorageException;
 
     @Override
-    protected IndexRange<T> parseRecord(int index, ByteBuffer buf) {
+    protected Pointer<T> parseRecord(int index, ByteBuffer buf)
+    throws StorageException {
       if (index == 0) {
         var cell = parseCell(index, buf);
-        return new IndexRange<>(new IndexRange.Unbounded<>(),
-                                new IndexRange.Bounded<>(cell.payload),
-                                cell.cellId);
+        return new Pointer<>(new Pointer.Unbounded<>(),
+                             new Pointer.Bounded<>(cell.payload),
+                             cell.cellId);
       } else if (index == numCells) {
         var cell = parseCell(index - 1, buf);
-        return new IndexRange<>(new IndexRange.Bounded<>(cell.payload),
-                                new IndexRange.Unbounded<>(),
-                                rightPage);
+        return new Pointer<>(new Pointer.Bounded<>(cell.payload),
+                             new Pointer.Unbounded<>(),
+                             rightPage);
       } else {
         var prev = parseCell(index - 1, buf);
         var cur = parseCell(index, buf);
-        return new IndexRange<>(new IndexRange.Bounded<>(prev.payload),
-                                new IndexRange.Bounded<>(cur.payload),
-                                cur.cellId);
+        return new Pointer<>(new Pointer.Bounded<>(prev.payload),
+                             new Pointer.Bounded<>(cur.payload),
+                             cur.cellId);
       }
     }
   }
@@ -115,30 +117,34 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     }
   }
 
-  public static final class IndexLeafPage extends LeafPage<byte[]> implements IndexPage {
+  public static final class IndexLeafPage extends LeafPage<Index.Key> implements IndexPage {
     IndexLeafPage(StorageEngine storage, ByteBuffer buf, int base) {
       super(storage, buf, base);
     }
 
     @Override
-    protected byte[] parseRecord(int index, ByteBuffer buf) {
+    protected Index.Key parseRecord(int index, ByteBuffer buf)
+    throws StorageException {
       if (index >= numCells) throw new AssertionError("index < numCells");
       int offset = cellOffset(index);
       var payloadSize = VarInt.parseFrom(buf.position(offset));
       offset += payloadSize.size();
       var payload = new byte[(int) payloadSize.value()];
       buf.position(offset).get(payload);
-      return payload;
+      var record = Record.parse(payload, storage.getCharset());
+      var rowId = record.values().removeLast();
+      return new Index.Key(record.values(), rowId.getInt());
     }
   }
 
-  public static final class IndexInteriorPage extends InteriorPage<byte[]> implements IndexPage {
+  public static final class IndexInteriorPage extends InteriorPage<Index.Key> implements IndexPage {
     IndexInteriorPage(StorageEngine storage, ByteBuffer buf, int base) {
       super(storage, buf, base);
     }
 
     @Override
-    protected Cell<byte[]> parseCell(int index, ByteBuffer buf) {
+    protected Cell<Index.Key> parseCell(int index, ByteBuffer buf)
+    throws StorageException {
       if (index >= numCells) throw new AssertionError("index < numCells");
       int offset = cellOffset(index);
       int pageNumber = buf.position(offset).getInt();
@@ -147,7 +153,10 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
       offset += payloadSize.size();
       var payload = new byte[(int) payloadSize.value()];
       buf.position(offset).get(payload);
-      return new Cell<>(pageNumber, payload);
+      var record = Record.parse(payload, storage.getCharset());
+      var rowId = record.values().removeLast();
+      return new Cell<>(pageNumber,
+                        new Index.Key(record.values(), rowId.getInt()));
     }
   }
 

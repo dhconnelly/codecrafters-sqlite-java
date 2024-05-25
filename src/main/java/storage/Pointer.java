@@ -2,8 +2,8 @@ package storage;
 
 import java.util.Optional;
 
-public record IndexRange<Key>(Endpoint<Key> left, Endpoint<Key> right,
-                              int pageNumber) {
+public record Pointer<Key>(Endpoint<Key> left, Endpoint<Key> right,
+                           int pageNumber) {
   public sealed interface Endpoint<Key> permits Unbounded,
       Bounded {
     default Optional<Key> get() {
