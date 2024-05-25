@@ -1,14 +1,19 @@
 package storage;
 
-import java.io.UnsupportedEncodingException;
+import query.Value;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
 public record Record(List<Value> values) {
-  public static Record parse(Database db, byte[] payload)
-  throws DatabaseException {
+
+  private record SizedValue(int size, Value value) {}
+
+  public static Record parse(byte[] payload, Charset charset)
+  throws StorageException {
     var values = new ArrayList<Value>();
     ByteBuffer buf = ByteBuffer.wrap(payload).order(ByteOrder.BIG_ENDIAN);
     var headerSize = VarInt.parseFrom(buf.position(0));
@@ -35,7 +40,7 @@ public record Record(List<Value> values) {
         case 9 -> new SizedValue(0, new Value.IntValue(1));
         default -> {
           if (n < 12) {
-            throw new DatabaseException(
+            throw new StorageException(
                 "invalid serial type: %d".formatted(n));
           } else if (n % 2 == 0) {
             var blob = new byte[(n - 12) / 2];
@@ -45,15 +50,8 @@ public record Record(List<Value> values) {
           } else {
             var data = new byte[(n - 13) / 2];
             buf.position(contentOffset).get(data);
-            String charset = db.charset();
-            try {
-              yield new SizedValue((n - 13) / 2,
-                                   new Value.StringValue(
-                                       new String(data,
-                                                  charset)));
-            } catch (UnsupportedEncodingException e) {
-              throw new DatabaseException("invalid charset: " + charset, e);
-            }
+            yield new SizedValue((n - 13) / 2, new Value.StringValue(
+                new String(data, charset)));
           }
         }
       };
@@ -62,6 +60,4 @@ public record Record(List<Value> values) {
     }
     return new Record(values);
   }
-
-  private record SizedValue(int size, Value value) {}
 }

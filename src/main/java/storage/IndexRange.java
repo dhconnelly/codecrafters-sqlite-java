@@ -2,9 +2,10 @@ package storage;
 
 import java.util.Optional;
 
-public record IndexedPage<Key>(Endpoint<Key> left, Endpoint<Key> right,
-                               int pageNumber) {
-  public sealed interface Endpoint<Key> permits Unbounded, Bounded {
+public record IndexRange<Key>(Endpoint<Key> left, Endpoint<Key> right,
+                              int pageNumber) {
+  public sealed interface Endpoint<Key> permits Unbounded,
+      Bounded {
     default Optional<Key> get() {
       return switch (this) {
         case Bounded<Key> e -> Optional.of(e.endpoint());

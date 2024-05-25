@@ -1,5 +1,6 @@
 package storage;
 
+import query.Value;
 import sql.AST;
 import sql.Parser;
 import sql.SQLException;
@@ -11,52 +12,48 @@ import java.util.List;
 import java.util.Optional;
 
 public class Index {
-  private final Database db;
+  private final StorageEngine storage;
   private final String name;
   private final Table table;
-  private final IndexPage<?> root;
+  private final Page.IndexPage root;
   private final AST.CreateIndexStatement definition;
 
-  public Index(Database db, String name, Table table, IndexPage<?> root,
+  public Index(StorageEngine storage, String name, Table table,
+               Page.IndexPage root,
                String schema)
   throws SQLException {
-    this.db = db;
+    this.storage = storage;
     this.name = name;
     this.table = table;
     this.root = root;
     this.definition = new Parser(new Scanner(schema)).createIndex();
   }
 
-  public String name() {return name;}
+  private record Key(List<Value> indexKey, long rowId) {}
 
-  public Table table() {return table;}
-
-  public AST.CreateIndexStatement definition() {return definition;}
-
-  private Key parse(byte[] payload) throws DatabaseException {
-    var record = Record.parse(db, payload);
+  private Key parse(byte[] payload) throws StorageException {
+    var record = Record.parse(payload, storage.getCharset());
     var rowId = record.values().removeLast();
     return new Key(record.values(), rowId.getInt());
   }
 
-  private IndexedPage.Endpoint<Key> parse(IndexedPage.Endpoint<byte[]> raw)
-  throws DatabaseException {
+  private IndexRange.Endpoint<Key> parse(IndexRange.Endpoint<byte[]> raw)
+  throws StorageException {
     return switch (raw) {
-      case IndexedPage.Unbounded<byte[]> ignored ->
-          new IndexedPage.Unbounded<>();
-      case IndexedPage.Bounded<byte[]> e ->
-          new IndexedPage.Bounded<>(parse(e.endpoint()));
+      case IndexRange.Unbounded<byte[]> ignored -> new IndexRange.Unbounded<>();
+      case IndexRange.Bounded<byte[]> e ->
+          new IndexRange.Bounded<>(parse(e.endpoint()));
     };
   }
 
-  private IndexedPage<Key> parse(IndexedPage<byte[]> raw)
-  throws DatabaseException {
-    return new IndexedPage<>(parse(raw.left()), parse(raw.right()),
-                             raw.pageNumber());
+  private IndexRange<Key> parse(IndexRange<byte[]> raw)
+  throws StorageException {
+    return new IndexRange<>(parse(raw.left()), parse(raw.right()),
+                            raw.pageNumber());
   }
 
   // TODO: move this into IndexedPage and make its generic type Comparable
-  private static boolean contains(IndexedPage<Key> page, Value value) {
+  private static boolean contains(IndexRange<Key> page, Value value) {
     // TODO: handle different collating functions
     Optional<Value> left = page.left().get()
                                .map(key -> key.indexKey.getFirst());
@@ -71,10 +68,10 @@ public class Index {
     return true;
   }
 
-  void collect(IndexPage<?> page, HashSet<Long> rows, Value filter)
-  throws DatabaseException, IOException {
+  void collect(Page.IndexPage page, HashSet<Long> rows, Value filter)
+  throws StorageException, IOException {
     switch (page) {
-      case IndexPage.Interior interior -> {
+      case Page.IndexInteriorPage interior -> {
         for (var encodedIndexedPage : interior.records()) {
           var indexedPage = parse(encodedIndexedPage);
           if (!contains(indexedPage, filter)) continue;
@@ -84,10 +81,11 @@ public class Index {
           indexedPage.right().get().ifPresent(k -> {
             if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
           });
-          collect(db.indexPage(indexedPage.pageNumber()), rows, filter);
+          collect(storage.getPage(indexedPage.pageNumber()).asIndexPage(), rows,
+                  filter);
         }
       }
-      case IndexPage.Leaf leaf -> {
+      case Page.IndexLeafPage leaf -> {
         for (var key : leaf.records()) {
           var k = parse(key);
           if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
@@ -96,8 +94,15 @@ public class Index {
     }
   }
 
+  public String name() {return name;}
+
+  public Table table() {return table;}
+
+  // TODO: return a string
+  public AST.CreateIndexStatement definition() {return definition;}
+
   public List<Long> find(String column, Value value)
-  throws SQLException, IOException, DatabaseException {
+  throws SQLException, IOException, StorageException {
     if (!definition.column().equals(column)) {
       throw new SQLException(
           "index %s does not cover column %s".formatted(name, column));
@@ -107,5 +112,4 @@ public class Index {
     return rows.stream().toList();
   }
 
-  private record Key(List<Value> indexKey, long rowId) {}
 }

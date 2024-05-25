@@ -1,5 +1,6 @@
 package storage;
 
+import query.Value;
 import sql.AST;
 import sql.Parser;
 import sql.SQLException;
@@ -9,14 +10,15 @@ import java.io.IOException;
 import java.util.*;
 
 public class Table {
-  private final Database db;
+  private final StorageEngine storage;
   private final String name;
-  private final TablePage<?> root;
+  private final Page.TablePage root;
   private final AST.CreateTableStatement definition;
 
-  public Table(Database db, String name, TablePage<?> root, String schema)
+  public Table(StorageEngine storage, String name, Page.TablePage root,
+               String schema)
   throws SQLException {
-    this.db = db;
+    this.storage = storage;
     this.name = name;
     this.root = root;
     this.definition = new Parser(new Scanner(schema)).createTable();
@@ -28,9 +30,8 @@ public class Table {
            mods.contains("key");
   }
 
-  public String name() {return name;}
 
-  private Row parseRow(TablePage.Leaf.Row row) {
+  private Row parseRow(Page.Row row) {
     var record = new HashMap<String, Value>();
     for (int i = 0; i < definition.columns().size(); i++) {
       var col = definition.columns().get(i);
@@ -42,43 +43,45 @@ public class Table {
     return new Row(row.rowId(), record);
   }
 
-  private void collect(TablePage<?> page, List<Row> rows)
-  throws DatabaseException, IOException {
+  private void collect(Page.TablePage page, List<Row> rows)
+  throws StorageException, IOException {
     switch (page) {
-      case TablePage.Leaf leaf ->
+      case Page.TableLeafPage leaf ->
           leaf.records().stream().map(this::parseRow).forEach(rows::add);
-      case TablePage.Interior interior -> {
+      case Page.TableInteriorPage interior -> {
         for (var indexedPage : interior.records()) {
-          collect(db.tablePage(indexedPage.pageNumber()), rows);
+          collect(storage.getPage(indexedPage.pageNumber()).asTablePage(),
+                  rows);
         }
       }
     }
   }
 
   // TODO: move this into IndexedPage and make its generic type Comparable
-  private static boolean contains(IndexedPage<Long> page, long rowId) {
-    if (page.left() instanceof IndexedPage.Bounded<Long> left &&
+  private static boolean contains(IndexRange<Long> page, long rowId) {
+    if (page.left() instanceof IndexRange.Bounded<Long> left &&
         rowId < left.endpoint()) {
       return false;
     }
-    if (page.right() instanceof IndexedPage.Bounded<Long> right &&
+    if (page.right() instanceof IndexRange.Bounded<Long> right &&
         rowId > right.endpoint()) {
       return false;
     }
     return true;
   }
 
-  private Optional<Row> lookup(TablePage<?> page, long rowId)
-  throws DatabaseException, IOException {
+  private Optional<Row> lookup(Page.TablePage page, long rowId)
+  throws StorageException, IOException {
     switch (page) {
-      case TablePage.Interior interior -> {
+      case Page.TableInteriorPage interior -> {
         for (var child : interior.records()) {
           if (contains(child, rowId)) {
-            return lookup(db.tablePage(child.pageNumber()), rowId);
+            return lookup(storage.getPage(child.pageNumber()).asTablePage(),
+                          rowId);
           }
         }
       }
-      case TablePage.Leaf leaf -> {
+      case Page.TableLeafPage leaf -> {
         for (var record : leaf.records()) {
           if (record.rowId() == rowId) return Optional.of(parseRow(record));
         }
@@ -87,17 +90,20 @@ public class Table {
     return Optional.empty();
   }
 
-  public List<Row> rows() throws DatabaseException, IOException {
+  public record Row(long rowId, Map<String, Value> values) {
+    public Value get(String column) {return values.get(column);}
+  }
+
+  public String name() {return name;}
+
+  // TODO: stream
+  public List<Row> rows() throws StorageException, IOException {
     var rows = new ArrayList<Row>();
     collect(root, rows);
     return rows;
   }
 
-  public Optional<Row> get(long rowId) throws IOException, DatabaseException {
+  public Optional<Row> get(long rowId) throws IOException, StorageException {
     return lookup(root, rowId);
-  }
-
-  public record Row(long rowId, Map<String, Value> values) {
-    public Value get(String column) {return values.get(column);}
   }
 }
