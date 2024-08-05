@@ -34,7 +34,7 @@ public class Database implements AutoCloseable {
   private void dbinfo() throws IOException, StorageException, SQLException {
     var storage = new StorageEngine(f);
     storage.getInfo().forEach(
-        (field, val) -> System.out.printf("%-20s %s\n", field, val));
+        (field, val) -> System.out.printf("%s: %s\n", field, val));
   }
 
   private void tables()
