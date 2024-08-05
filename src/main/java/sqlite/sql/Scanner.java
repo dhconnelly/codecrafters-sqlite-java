@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.Queue;
 
 import static sqlite.sql.Token.Type.IDENT;
+import static sqlite.sql.Token.Type.STR;
 
 public class Scanner {
   private final String s;
@@ -40,6 +41,7 @@ public class Scanner {
     };
   }
 
+  @Deprecated
   public Optional<Token> peek() {
     if (lookahead.isEmpty()) next().ifPresent(lookahead::add);
     return lookahead.stream().findFirst();
@@ -68,27 +70,32 @@ public class Scanner {
     return getKeyword(text).map(Token::of).orElse(Token.of(IDENT, text));
   }
 
-  private Token text(char delim, Token.Type type) {
+  private String stringLiteral(char delim) {
     eat(delim);
     int begin = pos;
     while (pos < s.length() && s.charAt(pos) != delim) ++pos;
-    String text = s.substring(begin, pos);
+    var text = s.substring(begin, pos);
     eat(delim);
-    return new Token(type, text);
+    return text;
   }
 
   public Token nextToken() {
     return next().get();
   }
 
+  @Deprecated
   public Optional<Token> next() {
     if (!lookahead.isEmpty()) return Optional.of(lookahead.poll());
     while (pos < s.length()) {
       char c = s.charAt(pos);
       switch (c) {
         case ' ', '\n', '\t' -> ++pos;
-        case '\'' -> {return Optional.of(text(c, Token.Type.STR));}
-        case '"' -> {return Optional.of(text(c, IDENT));}
+        case '\'' -> {
+          return Optional.of(Token.of(STR, stringLiteral(c)));
+        }
+        case '"' -> {
+          return Optional.of(Token.of(IDENT, stringLiteral(c)));
+        }
         case '=', ',', '(', ')', '*' -> {
           eat(c);
           return Optional.of(Token.of(getType(c)));
