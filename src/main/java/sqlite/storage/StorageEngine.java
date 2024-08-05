@@ -123,10 +123,6 @@ public class StorageEngine {
     }
   }
 
-  Charset getCharset() {
-    return charset;
-  }
-
   Page<?> getPage(int pageNumber)
   throws IOException, StorageException {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
@@ -136,6 +132,6 @@ public class StorageEngine {
       throw new StorageException(
           "bad page size: want %d, got %d".formatted(page.capacity(), read));
     }
-    return Page.create(this, page, pageNumber == 1 ? 100 : 0);
+    return Page.from(page, pageNumber == 1 ? 100 : 0, charset);
   }
 }
