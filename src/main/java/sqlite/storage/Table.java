@@ -24,7 +24,7 @@ public class Table {
     this.definition = new Parser(new Scanner(schema)).createTable();
   }
 
-  private static boolean isIntegerPK(AST.ColumnDefinition col) {
+  private static boolean isIntegerPK(AST.ColumnDef col) {
     var mods = col.modifiers();
     return mods.contains("integer") && mods.contains("primary") &&
            mods.contains("key");

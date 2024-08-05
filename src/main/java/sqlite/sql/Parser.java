@@ -92,13 +92,13 @@ public class Parser {
     return new AST.SelectStatement(columns, filter, table.text());
   }
 
-  private AST.ColumnDefinition columnDefinition() throws SQLException {
+  private AST.ColumnDef columnDefinition() throws SQLException {
     var name = eat(Token.Type.IDENT);
     var modifiers = new ArrayList<String>();
     while (!peekIs(Token.Type.COMMA) && !peekIs(Token.Type.RPAREN)) {
       modifiers.add(eat(Token.Type.IDENT).text());
     }
-    return new AST.ColumnDefinition(name.text(), modifiers);
+    return new AST.ColumnDef(name.text(), modifiers);
   }
 
   public AST.CreateTableStatement createTable() throws SQLException {
@@ -106,7 +106,7 @@ public class Parser {
     eat(Token.Type.TABLE);
     var name = eat(Token.Type.IDENT);
     eat(Token.Type.LPAREN);
-    var columns = new ArrayList<AST.ColumnDefinition>();
+    var columns = new ArrayList<AST.ColumnDef>();
     while (!peekIs(Token.Type.RPAREN)) {
       columns.add(columnDefinition());
       if (!peekIs(Token.Type.RPAREN)) eat(Token.Type.COMMA);

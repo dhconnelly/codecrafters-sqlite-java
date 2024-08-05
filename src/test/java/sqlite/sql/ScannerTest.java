@@ -1,6 +1,5 @@
 package sqlite.sql;
 
-import common.NonNull;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -11,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static sqlite.sql.Token.Type.*;
 
 public class ScannerTest {
-  private static List<Token> scanAll(@NonNull final String text) {
+  private static List<Token> scanAll(final String text) {
     var scanner = new Scanner(text);
     var tokens = new ArrayList<Token>();
     while (!scanner.isEof()) {
