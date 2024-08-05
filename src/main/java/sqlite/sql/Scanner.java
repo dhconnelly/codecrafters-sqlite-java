@@ -1,21 +1,18 @@
 package sqlite.sql;
 
-import java.util.ArrayDeque;
 import java.util.Optional;
-import java.util.Queue;
 
-import static sqlite.sql.Token.Type.IDENT;
-import static sqlite.sql.Token.Type.STR;
+import static sqlite.sql.Token.Type.*;
 
 public class Scanner {
   private final String s;
   private int pos;
-  private final Queue<Token> lookahead;
+  private Optional<Token> lookahead;
 
   public Scanner(String s) {
     this.s = s;
     this.pos = 0;
-    this.lookahead = new ArrayDeque<>();
+    this.lookahead = Optional.empty();
   }
 
   private static boolean isIdentifier(char c) {
@@ -32,26 +29,16 @@ public class Scanner {
 
   private static Token.Type getType(char c) {
     return switch (c) {
-      case ',' -> Token.Type.COMMA;
-      case '=' -> Token.Type.EQ;
-      case '(' -> Token.Type.LPAREN;
-      case ')' -> Token.Type.RPAREN;
-      case '*' -> Token.Type.STAR;
+      case ',' -> COMMA;
+      case '=' -> EQ;
+      case '(' -> LPAREN;
+      case ')' -> RPAREN;
+      case '*' -> STAR;
       default -> throw new SQLException("scanner: bad token: %c".formatted(c));
     };
   }
 
-  @Deprecated
-  public Optional<Token> peek() {
-    if (lookahead.isEmpty()) next().ifPresent(lookahead::add);
-    return lookahead.stream().findFirst();
-  }
-
-  public boolean isEof() {
-    return peek().isEmpty();
-  }
-
-  private String eat(char want) {
+  private void eat(char want) {
     if (pos >= s.length()) {
       throw new SQLException("scanner: unexpected eof");
     }
@@ -60,7 +47,6 @@ public class Scanner {
       throw new SQLException("scanner: want %c, got %c".formatted(want, got));
     }
     ++pos;
-    return String.valueOf(want);
   }
 
   private Token identifier() {
@@ -79,13 +65,25 @@ public class Scanner {
     return text;
   }
 
-  public Token nextToken() {
-    return next().get();
+  public boolean isEof() {
+    return peek().isEmpty();
   }
 
-  @Deprecated
-  public Optional<Token> next() {
-    if (!lookahead.isEmpty()) return Optional.of(lookahead.poll());
+  public Optional<Token> peek() {
+    if (lookahead.isEmpty()) lookahead = advance();
+    return lookahead;
+  }
+
+  public Token next() {
+    return advance().orElseThrow(() -> new SQLException("unexpected eof"));
+  }
+
+  private Optional<Token> advance() {
+    if (lookahead.isPresent()) {
+      var tok = lookahead;
+      lookahead = Optional.empty();
+      return tok;
+    }
     while (pos < s.length()) {
       char c = s.charAt(pos);
       switch (c) {

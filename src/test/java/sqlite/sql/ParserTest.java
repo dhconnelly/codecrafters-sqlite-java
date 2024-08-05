@@ -38,6 +38,9 @@ public class ParserTest {
     assertThrows(
         SQLException.class,
         () -> parse("create index byEmail on users (foo").createIndex());
+    assertThrows(
+        SQLException.class,
+        () -> parse("create index byEmail on users (foo) bar").createIndex());
   }
 
   @Test
@@ -84,20 +87,19 @@ public class ParserTest {
   public void testCreateTableErrors() {
     assertThrows(
         SQLException.class,
-        () -> parse("create table foo").createTable()
-    );
+        () -> parse("create table foo").createTable());
     assertThrows(
         SQLException.class,
-        () -> parse("create table foo (").createTable()
-    );
+        () -> parse("create table foo (").createTable());
     assertThrows(
         SQLException.class,
-        () -> parse("create table foo ( user 5 )").createTable()
-    );
+        () -> parse("create table foo ( user 5 )").createTable());
     assertThrows(
         SQLException.class,
-        () -> parse("create table foo ( 5 )").createTable()
-    );
+        () -> parse("create table foo ( 5 )").createTable());
+    assertThrows(
+        SQLException.class,
+        () -> parse("create table foo ( 5 ) foo").createTable());
   }
 
   @Test

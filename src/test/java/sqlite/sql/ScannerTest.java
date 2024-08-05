@@ -4,9 +4,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static sqlite.sql.Token.Type.*;
 
 public class ScannerTest {
@@ -14,7 +14,7 @@ public class ScannerTest {
     var scanner = new Scanner(text);
     var tokens = new ArrayList<Token>();
     while (!scanner.isEof()) {
-      tokens.add(scanner.nextToken());
+      tokens.add(scanner.next());
     }
     return tokens;
   }
@@ -30,6 +30,16 @@ public class ScannerTest {
     assertThrows(SQLException.class, () -> scanAll(" ^  "));
     assertThrows(SQLException.class, () -> scanAll(" 'foo  "));
     assertThrows(SQLException.class, () -> scanAll(" \"foo   "));
+  }
+
+  @Test
+  public void testPeek() {
+    var scanner = new Scanner(" foo ");
+    assertEquals(Optional.of(Token.of(IDENT, "foo")), scanner.peek());
+    assertEquals(Optional.of(Token.of(IDENT, "foo")), scanner.peek());
+    assertEquals(Token.of(IDENT, "foo"), scanner.next());
+    assertEquals(Optional.empty(), scanner.peek());
+    assertTrue(scanner.isEof());
   }
 
   @Test
