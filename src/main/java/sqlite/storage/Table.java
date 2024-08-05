@@ -47,9 +47,9 @@ public class Table {
   throws StorageException, IOException {
     switch (page) {
       case Page.TableLeafPage leaf ->
-          leaf.records().stream().map(this::parseRow).forEach(rows::add);
+          leaf.records().map(this::parseRow).forEach(rows::add);
       case Page.TableInteriorPage interior -> {
-        for (var indexedPage : interior.records()) {
+        for (var indexedPage : interior.recordsIterable()) {
           collect(storage.getPage(indexedPage.pageNumber()).asTablePage(),
                   rows);
         }
@@ -63,18 +63,15 @@ public class Table {
         rowId < left.endpoint()) {
       return false;
     }
-    if (page.right() instanceof Pointer.Bounded<Long> right &&
-        rowId > right.endpoint()) {
-      return false;
-    }
-    return true;
+    return !(page.right() instanceof Pointer.Bounded<Long> right) ||
+           rowId <= right.endpoint();
   }
 
   private Optional<Row> lookup(Page.TablePage page, long rowId)
   throws StorageException, IOException {
     switch (page) {
       case Page.TableInteriorPage interior -> {
-        for (var child : interior.records()) {
+        for (var child : interior.recordsIterable()) {
           if (contains(child, rowId)) {
             return lookup(storage.getPage(child.pageNumber()).asTablePage(),
                           rowId);
@@ -82,7 +79,7 @@ public class Table {
         }
       }
       case Page.TableLeafPage leaf -> {
-        for (var record : leaf.records()) {
+        for (var record : leaf.recordsIterable()) {
           if (record.rowId() == rowId) return Optional.of(parseRow(record));
         }
       }

@@ -41,17 +41,14 @@ public class Index {
     if (left.isPresent() && left.get().compareTo(value) > 0) {
       return false;
     }
-    if (right.isPresent() && right.get().compareTo(value) < 0) {
-      return false;
-    }
-    return true;
+    return right.isEmpty() || right.get().compareTo(value) >= 0;
   }
 
   void collect(Page.IndexPage page, HashSet<Long> rows, Value filter)
   throws StorageException, IOException {
     switch (page) {
       case Page.IndexInteriorPage interior -> {
-        for (var indexedPage : interior.records()) {
+        for (var indexedPage : interior.recordsIterable()) {
           if (!contains(indexedPage, filter)) continue;
           indexedPage.left().get().ifPresent(k -> {
             if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
@@ -64,7 +61,7 @@ public class Index {
         }
       }
       case Page.IndexLeafPage leaf -> {
-        for (var k : leaf.records()) {
+        for (var k : leaf.recordsIterable()) {
           if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
         }
       }

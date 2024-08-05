@@ -2,8 +2,8 @@ package sqlite.storage;
 
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 
 public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   private final ByteBuffer buf;
@@ -19,11 +19,15 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     return buf.position(base + headerSize() + index * 2).getShort();
   }
 
-  // TODO: stream?
-  List<T> records() {
-    var records = new ArrayList<T>();
-    for (int i = 0; i < numRecords(); i++) records.add(parseRecord(i, buf));
-    return records;
+  Stream<T> records() {
+    final var n = new AtomicInteger(0);
+    return Stream.generate(() -> parseRecord(n.getAndIncrement(), buf))
+                 .limit(numRecords());
+  }
+
+  // TODO: migrate callers to `records`
+  Iterable<T> recordsIterable() {
+    return records()::iterator;
   }
 
   protected Page(ByteBuffer buf, int base, Charset charset) {
@@ -88,19 +92,16 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
       if (index == 0) {
         var cell = parseCell(index, buf);
         return new Pointer<>(new Pointer.Unbounded<>(),
-                             new Pointer.Bounded<>(cell.payload),
-                             cell.cellId);
+                             new Pointer.Bounded<>(cell.payload), cell.cellId);
       } else if (index == numCells) {
         var cell = parseCell(index - 1, buf);
         return new Pointer<>(new Pointer.Bounded<>(cell.payload),
-                             new Pointer.Unbounded<>(),
-                             rightPage);
+                             new Pointer.Unbounded<>(), rightPage);
       } else {
         var prev = parseCell(index - 1, buf);
         var cur = parseCell(index, buf);
         return new Pointer<>(new Pointer.Bounded<>(prev.payload),
-                             new Pointer.Bounded<>(cur.payload),
-                             cur.cellId);
+                             new Pointer.Bounded<>(cur.payload), cur.cellId);
       }
     }
   }
@@ -109,8 +110,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   // Table and index pages
   // =====================
 
-  public sealed interface TablePage
-      permits TableLeafPage, TableInteriorPage {}
+  public sealed interface TablePage permits TableLeafPage, TableInteriorPage {}
 
   public TablePage asTablePage() {
     if (this instanceof TablePage page) return page;
@@ -118,8 +118,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
         "wanted table page, got %s".formatted(this.getClass()));
   }
 
-  public sealed interface IndexPage
-      permits IndexLeafPage, IndexInteriorPage {}
+  public sealed interface IndexPage permits IndexLeafPage, IndexInteriorPage {}
 
   public IndexPage asIndexPage() {
     if (this instanceof IndexPage page) return page;
@@ -133,7 +132,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
 
   record Row(long rowId, Record values) {}
 
-  public static final class TableLeafPage
+  static final class TableLeafPage
       extends LeafPage<Row>
       implements TablePage {
     TableLeafPage(ByteBuffer buf, int base, Charset charset) {
@@ -154,10 +153,10 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     }
   }
 
-  public static final class TableInteriorPage
+  static final class TableInteriorPage
       extends InteriorPage<Long>
       implements TablePage {
-    protected TableInteriorPage(ByteBuffer buf, int base, Charset charset) {
+    private TableInteriorPage(ByteBuffer buf, int base, Charset charset) {
       super(buf, base, charset);
     }
 
@@ -195,7 +194,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   public static final class IndexInteriorPage
       extends InteriorPage<Index.Key>
       implements IndexPage {
-    protected IndexInteriorPage(ByteBuffer buf, int base, Charset charset) {
+    private IndexInteriorPage(ByteBuffer buf, int base, Charset charset) {
       super(buf, base, charset);
     }
 
