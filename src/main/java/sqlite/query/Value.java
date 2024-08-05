@@ -1,4 +1,4 @@
-package query;
+package sqlite.query;
 
 public sealed interface Value {
   record NullValue() implements Value {}

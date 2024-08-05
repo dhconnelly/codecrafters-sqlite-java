@@ -1,13 +1,13 @@
-package query;
+package sqlite.query;
 
-import sql.AST;
-import sql.Parser;
-import sql.SQLException;
-import sql.Scanner;
-import storage.Index;
-import storage.StorageEngine;
-import storage.StorageException;
-import storage.Table;
+import sqlite.sql.AST;
+import sqlite.sql.Parser;
+import sqlite.sql.SQLException;
+import sqlite.sql.Scanner;
+import sqlite.storage.Index;
+import sqlite.storage.StorageEngine;
+import sqlite.storage.StorageException;
+import sqlite.storage.Table;
 
 import java.io.IOException;
 import java.util.ArrayList;

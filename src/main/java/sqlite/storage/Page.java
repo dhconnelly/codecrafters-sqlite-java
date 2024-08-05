@@ -1,4 +1,4 @@
-package storage;
+package sqlite.storage;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;

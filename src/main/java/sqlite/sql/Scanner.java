@@ -1,8 +1,10 @@
-package sql;
+package sqlite.sql;
 
 import java.util.ArrayDeque;
 import java.util.Optional;
 import java.util.Queue;
+
+import static sqlite.sql.Token.Type.IDENT;
 
 public class Scanner {
   private final String s;
@@ -19,20 +21,15 @@ public class Scanner {
     return Character.isAlphabetic(c) || c == '_';
   }
 
-  private static Token.Type getType(String text) {
-    return switch (text.toLowerCase()) {
-      case "select" -> Token.Type.SELECT;
-      case "from" -> Token.Type.FROM;
-      case "table" -> Token.Type.TABLE;
-      case "create" -> Token.Type.CREATE;
-      case "where" -> Token.Type.WHERE;
-      case "index" -> Token.Type.INDEX;
-      case "on" -> Token.Type.ON;
-      default -> Token.Type.IDENT;
-    };
+  private static Optional<Token.Type> getKeyword(String name) {
+    try {
+      return Optional.of(Token.Type.valueOf(name.toUpperCase()));
+    } catch (IllegalArgumentException ignored) {
+      return Optional.empty();
+    }
   }
 
-  private static Token.Type getType(char c) throws SQLException {
+  private static Token.Type getType(char c) {
     return switch (c) {
       case ',' -> Token.Type.COMMA;
       case '=' -> Token.Type.EQ;
@@ -43,15 +40,23 @@ public class Scanner {
     };
   }
 
-  public Optional<Token> peek() throws SQLException {
+  public Optional<Token> peek() {
     if (lookahead.isEmpty()) next().ifPresent(lookahead::add);
     return lookahead.stream().findFirst();
   }
 
-  private String eat(char want) throws SQLException {
+  public boolean isEof() {
+    return peek().isEmpty();
+  }
+
+  private String eat(char want) {
+    if (pos >= s.length()) {
+      throw new SQLException("scanner: unexpected eof");
+    }
     char got = s.charAt(pos);
-    if (got != want)
+    if (got != want) {
       throw new SQLException("scanner: want %c, got %c".formatted(want, got));
+    }
     ++pos;
     return String.valueOf(want);
   }
@@ -59,11 +64,11 @@ public class Scanner {
   private Token identifier() {
     int begin = pos;
     while (pos < s.length() && isIdentifier(s.charAt(pos))) pos++;
-    String text = s.substring(begin, pos);
-    return new Token(getType(text), text);
+    var text = s.substring(begin, pos);
+    return getKeyword(text).map(Token::of).orElse(Token.of(IDENT, text));
   }
 
-  private Token text(char delim, Token.Type type) throws SQLException {
+  private Token text(char delim, Token.Type type) {
     eat(delim);
     int begin = pos;
     while (pos < s.length() && s.charAt(pos) != delim) ++pos;
@@ -72,16 +77,21 @@ public class Scanner {
     return new Token(type, text);
   }
 
-  public Optional<Token> next() throws SQLException {
+  public Token nextToken() {
+    return next().get();
+  }
+
+  public Optional<Token> next() {
     if (!lookahead.isEmpty()) return Optional.of(lookahead.poll());
     while (pos < s.length()) {
       char c = s.charAt(pos);
       switch (c) {
         case ' ', '\n', '\t' -> ++pos;
         case '\'' -> {return Optional.of(text(c, Token.Type.STR));}
-        case '"' -> {return Optional.of(text(c, Token.Type.IDENT));}
+        case '"' -> {return Optional.of(text(c, IDENT));}
         case '=', ',', '(', ')', '*' -> {
-          return Optional.of(new Token(getType(c), eat(c)));
+          eat(c);
+          return Optional.of(Token.of(getType(c)));
         }
         default -> {
           if (isIdentifier(c)) return Optional.of(identifier());

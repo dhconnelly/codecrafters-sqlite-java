@@ -1,6 +1,6 @@
-package storage;
+package sqlite.storage;
 
-import sql.SQLException;
+import sqlite.sql.SQLException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

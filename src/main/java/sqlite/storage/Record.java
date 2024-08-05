@@ -1,6 +1,6 @@
-package storage;
+package sqlite.storage;
 
-import query.Value;
+import sqlite.query.Value;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;

@@ -1,10 +1,10 @@
-package storage;
+package sqlite.storage;
 
-import query.Value;
-import sql.AST;
-import sql.Parser;
-import sql.SQLException;
-import sql.Scanner;
+import sqlite.query.Value;
+import sqlite.sql.AST;
+import sqlite.sql.Parser;
+import sqlite.sql.SQLException;
+import sqlite.sql.Scanner;
 
 import java.io.IOException;
 import java.util.HashSet;

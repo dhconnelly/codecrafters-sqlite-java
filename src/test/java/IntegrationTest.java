@@ -1,13 +1,13 @@
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import query.QueryEngine;
-import query.Row;
-import query.Value;
-import sql.SQLException;
-import storage.StorageEngine;
-import storage.StorageException;
-import storage.Table;
+import sqlite.query.QueryEngine;
+import sqlite.query.Row;
+import sqlite.query.Value;
+import sqlite.sql.SQLException;
+import sqlite.storage.StorageEngine;
+import sqlite.storage.StorageException;
+import sqlite.storage.Table;
 
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
