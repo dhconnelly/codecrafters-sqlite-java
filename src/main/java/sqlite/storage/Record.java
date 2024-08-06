@@ -8,6 +8,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
+// TODO: unit tests
 public record Record(List<Value> values) {
 
   private record SizedValue(int size, Value value) {}

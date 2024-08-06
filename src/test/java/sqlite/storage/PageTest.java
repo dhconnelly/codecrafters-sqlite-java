@@ -1,6 +1,7 @@
 package sqlite.storage;
 
 import org.junit.jupiter.api.Test;
+import sqlite.query.Value;
 import sqlite.storage.Pointer.Bounded;
 import sqlite.storage.Pointer.Unbounded;
 
@@ -54,6 +55,16 @@ public class PageTest {
     return bytes;
   }
 
+  private static int[] concat(int[] left, int[] right) {
+    return IntStream.concat(Arrays.stream(left), Arrays.stream(right))
+                    .toArray();
+  }
+
+  private static int[] concat(int[]... arrays) {
+    return Arrays.stream(arrays).reduce(PageTest::concat)
+                 .orElseGet(() -> new int[0]);
+  }
+
   @Test
   public void testInvalidPage() {
     fail();
@@ -91,14 +102,33 @@ public class PageTest {
     );
   }
 
-  int[] concat(int[] left, int[] right) {
-    return IntStream.concat(Arrays.stream(left), Arrays.stream(right))
-                    .toArray();
-  }
-
   @Test
   public void testTableLeafPage() {
-    fail();
+    int[][] cells = new int[][]{
+        // <payload size, integer key, row data>
+        concat(new int[]{3}, new int[]{1}, new int[]{2, 1, -17}),
+        concat(new int[]{3}, new int[]{2}, new int[]{2, 1, 0}),
+        concat(new int[]{3}, new int[]{3}, new int[]{2, 1, 4}),
+    };
+    var buf = testPage(
+        Page.Type.TABLE_LEAF, cells.length, new int[]{}, cells);
+
+    var page = Page.from(buf, PAGE_OFFSET, StandardCharsets.UTF_8);
+
+    page.asTablePage();
+    assertThrows(StorageException.class, page::asIndexPage);
+    assertEquals(3, page.getNumCells());
+    assertEquals(3, page.numRecords());
+    assertEquals(StandardCharsets.UTF_8, page.getCharset());
+    assertEquals(8, page.headerSize());
+    assertEquals(
+        List.of(
+            new Page.Row(1, new Record(List.of(new Value.IntValue(-17)))),
+            new Page.Row(2, new Record(List.of(new Value.IntValue(0)))),
+            new Page.Row(3, new Record(List.of(new Value.IntValue(4))))
+        ),
+        page.records().toList()
+    );
   }
 
   @Test
