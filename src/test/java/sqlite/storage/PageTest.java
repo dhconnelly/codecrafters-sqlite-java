@@ -9,7 +9,6 @@ import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
-import java.util.OptionalInt;
 import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -22,7 +21,7 @@ public class PageTest {
   private static ByteBuffer testPage(
       Page.Type type,
       int numCells,
-      OptionalInt interiorPageRightMostPointer,
+      int[] interiorPageRightMostPointer,
       // int array to allow passing an array literal without suicide
       int[][] cells
   ) {
@@ -33,10 +32,7 @@ public class PageTest {
     // fill the header
     buf.position(PAGE_OFFSET).put(type.value);
     buf.position(PAGE_OFFSET + 3).putShort((short) numCells);
-    interiorPageRightMostPointer.ifPresent(pageNumber -> buf
-        .position(PAGE_OFFSET + 8)
-        .putInt(pageNumber)
-    );
+    buf.position(PAGE_OFFSET + 8).put(toBytes(interiorPageRightMostPointer));
 
     // fill the pointer and content arrays
     final int afterHeader = PAGE_OFFSET + Page.headerSize(type);
@@ -73,7 +69,7 @@ public class PageTest {
         concat(new int[]{0, 0, 0, 4}, new int[]{8}),
     };
     var buf = testPage(
-        Page.Type.TABLE_INTERIOR, cells.length, OptionalInt.of(5), cells);
+        Page.Type.TABLE_INTERIOR, cells.length, new int[]{0, 0, 0, 5}, cells);
 
     var page = Page.from(buf, PAGE_OFFSET, StandardCharsets.UTF_8);
 
