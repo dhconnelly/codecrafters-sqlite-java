@@ -12,7 +12,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class PageTest {
   // create the page at an offset to catch more bugs
@@ -21,7 +22,6 @@ public class PageTest {
 
   private static ByteBuffer testPage(
       Page.Type type,
-      int numCells,
       int[] interiorPageRightMostPointer,
       // int array to allow passing an array literal without suicide
       int[][] cells
@@ -32,7 +32,7 @@ public class PageTest {
 
     // fill the header
     buf.position(PAGE_OFFSET).put(type.value);
-    buf.position(PAGE_OFFSET + 3).putShort((short) numCells);
+    buf.position(PAGE_OFFSET + 3).putShort((short) cells.length);
     buf.position(PAGE_OFFSET + 8).put(toBytes(interiorPageRightMostPointer));
 
     // fill the pointer and content arrays
@@ -66,11 +66,6 @@ public class PageTest {
   }
 
   @Test
-  public void testInvalidPage() {
-    fail();
-  }
-
-  @Test
   public void testTableInteriorPage() {
     int[][] cells = new int[][]{
         // <page number, integer key>
@@ -79,8 +74,7 @@ public class PageTest {
         concat(new int[]{0, 0, 0, 3}, new int[]{6}),
         concat(new int[]{0, 0, 0, 4}, new int[]{8}),
     };
-    var buf = testPage(
-        Page.Type.TABLE_INTERIOR, cells.length, new int[]{0, 0, 0, 5}, cells);
+    var buf = testPage(Page.Type.TABLE_INTERIOR, new int[]{0, 0, 0, 5}, cells);
 
     var page = Page.from(buf, PAGE_OFFSET, StandardCharsets.UTF_8);
 
@@ -110,8 +104,7 @@ public class PageTest {
         concat(new int[]{3}, new int[]{2}, new int[]{2, 1, 0}),
         concat(new int[]{3}, new int[]{3}, new int[]{2, 1, 4}),
     };
-    var buf = testPage(
-        Page.Type.TABLE_LEAF, cells.length, new int[]{}, cells);
+    var buf = testPage(Page.Type.TABLE_LEAF, new int[]{}, cells);
 
     var page = Page.from(buf, PAGE_OFFSET, StandardCharsets.UTF_8);
 
@@ -133,11 +126,48 @@ public class PageTest {
 
   @Test
   public void testIndexInteriorPage() {
-    fail();
+    int[][] cells = new int[][]{
+        // cell = <page number, payload size, payload>
+        // payload = <header size, column descriptors, values>
+        concat(new int[]{0, 0, 0, 1}, new int[]{5},
+               new int[]{3, 15, 1, 'a', 2}),
+        concat(new int[]{0, 0, 0, 2}, new int[]{5},
+               new int[]{3, 15, 1, 'b', 4}),
+    };
+    var buf = testPage(Page.Type.INDEX_INTERIOR, new int[]{0, 0, 0, 3}, cells);
+
+    var page = Page.from(buf, PAGE_OFFSET, StandardCharsets.UTF_8);
+
+    page.asIndexPage();
+    assertThrows(StorageException.class, page::asTablePage);
+    assertEquals(2, page.getNumCells());
+    assertEquals(3, page.numRecords());
+    assertEquals(StandardCharsets.UTF_8, page.getCharset());
+    assertEquals(12, page.headerSize());
+    assertEquals(
+        List.of(
+            new Pointer<>(new Unbounded<>(),
+                          new Bounded<>(indexKey("a", 2)), 1),
+            new Pointer<>(new Bounded<>(indexKey("a", 2)),
+                          new Bounded<>(indexKey("b", 4)), 2),
+            new Pointer<>(new Bounded<>(indexKey("b", 4)),
+                          new Unbounded<>(), 3)
+        ),
+        page.records().toList()
+    );
+  }
+
+  private static Index.Key indexKey(String value, long rowId) {
+    return new Index.Key(List.of(new Value.StringValue(value)), rowId);
   }
 
   @Test
   public void testIndexLeafPage() {
-    fail();
+    // TODO
+  }
+
+  @Test
+  public void testInvalidPage() {
+    // TODO
   }
 }
