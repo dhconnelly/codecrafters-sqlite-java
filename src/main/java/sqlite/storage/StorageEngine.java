@@ -1,11 +1,7 @@
 package sqlite.storage;
 
-import sqlite.sql.SQLException;
-
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -22,14 +18,13 @@ public class StorageEngine {
       """;
 
   private final int pageSize;
-  private final SeekableByteChannel file;
+  private final BackingFile file;
   private final Charset charset;
 
-  public StorageEngine(SeekableByteChannel file)
-  throws IOException, StorageException {
+  public StorageEngine(BackingFile file) {
+    this.file = file;
     var header = Header.read(file);
     this.pageSize = header.pageSize;
-    this.file = file;
     this.charset = switch (header.encoding) {
       case Utf16be -> StandardCharsets.UTF_16BE;
       case Utf16le -> StandardCharsets.UTF_16LE;
@@ -37,21 +32,16 @@ public class StorageEngine {
     };
   }
 
-  public Map<String, Object> getInfo()
-  throws SQLException, IOException, StorageException {
-    return Map.of(
-        "database page size", pageSize,
-        "number of tables", getTables().size()
-    );
+  public Map<String, Object> getInfo() {
+    return Map.of("database page size", pageSize, "number of tables",
+                  getTables().size());
   }
 
-  private Table schema() throws IOException, SQLException, StorageException {
-    return new Table(this, "sqlite_schema", getPage(1).asTablePage(),
-                     SCHEMA);
+  private Table schema() {
+    return new Table(this, "sqlite_schema", getPage(1).asTablePage(), SCHEMA);
   }
 
-  public List<Map<String, String>> getObjects()
-  throws SQLException, IOException, StorageException {
+  public List<Map<String, String>> getObjects() {
     var objects = new ArrayList<Map<String, String>>();
     for (var r : schema().rows()) {
       var object = new HashMap<String, String>();
@@ -63,8 +53,7 @@ public class StorageEngine {
     return objects;
   }
 
-  public List<Index> getIndices()
-  throws IOException, StorageException, SQLException {
+  public List<Index> getIndices() {
     var indices = new ArrayList<Index>();
     for (var r : schema().rows()) {
       if (r.get("type").getString().equals("index")) {
@@ -72,41 +61,36 @@ public class StorageEngine {
         var tableName = r.get("tbl_name").getString();
         var table = getTable(tableName).orElseThrow(() -> new StorageException(
             "index %s: table does not exist: %s".formatted(name, tableName)));
-        indices.add(new Index(this, name, table,
-                              getPage((int) r.get("rootpage").getInt())
-                                  .asIndexPage(),
+        indices.add(new Index(this, name, table, getPage(
+            (int) r.get("rootpage").getInt()).asIndexPage(),
                               r.get("sql").getString()));
       }
     }
     return indices;
   }
 
-  public List<Table> getTables()
-  throws IOException, SQLException, StorageException {
+  public List<Table> getTables() {
     var tables = new ArrayList<Table>();
     for (var r : schema().rows()) {
       if (r.get("type").getString().equals("table")) {
-        tables.add(new Table(this, r.get("name").getString(),
-                             getPage((int) r.get("rootpage").getInt())
-                                 .asTablePage(),
+        tables.add(new Table(this, r.get("name").getString(), getPage(
+            (int) r.get("rootpage").getInt()).asTablePage(),
                              r.get("sql").getString()));
       }
     }
     return tables;
   }
 
-  private Optional<Table> getTable(String name)
-  throws IOException, SQLException, StorageException {
+  private Optional<Table> getTable(String name) {
     return getTables().stream().filter(t -> t.name().equals(name)).findFirst();
   }
 
   private enum TextEncoding {Utf8, Utf16le, Utf16be}
 
   private record Header(int pageSize, int pageCount, TextEncoding encoding) {
-    static Header read(SeekableByteChannel file)
-    throws IOException, StorageException {
+    static Header read(BackingFile file) {
       var bytes = ByteBuffer.allocate(100).order(ByteOrder.BIG_ENDIAN);
-      if (file.position(0).read(bytes) != 100) {
+      if (file.seek(0).read(bytes) != 100) {
         throw new StorageException("invalid header: must contain 100 bytes");
       }
       int pageSize = Short.toUnsignedInt(bytes.position(16).getShort());
@@ -123,11 +107,10 @@ public class StorageEngine {
     }
   }
 
-  Page<?> getPage(int pageNumber)
-  throws IOException, StorageException {
+  Page<?> getPage(int pageNumber) {
     var page = ByteBuffer.allocate(pageSize).order(ByteOrder.BIG_ENDIAN);
     long offset = (long) (pageNumber - 1) * pageSize;
-    int read = file.position(offset).read(page);
+    int read = file.seek(offset).read(page);
     if (read != page.capacity()) {
       throw new StorageException(
           "bad page size: want %d, got %d".formatted(page.capacity(), read));

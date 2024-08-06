@@ -5,12 +5,12 @@ import sqlite.query.QueryEngine;
 import sqlite.query.Row;
 import sqlite.query.Value;
 import sqlite.sql.SQLException;
+import sqlite.storage.BackingFile;
 import sqlite.storage.StorageEngine;
 import sqlite.storage.StorageException;
 import sqlite.storage.Table;
 
 import java.io.IOException;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
@@ -22,17 +22,17 @@ import java.util.stream.Collectors;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 public class IntegrationTest {
-  private SeekableByteChannel file;
+  private BackingFile file;
 
   @BeforeEach
   void setUp() throws IOException {
     var resource = Objects.requireNonNull(
         IntegrationTest.class.getResource("test.db"));
-    file = Files.newByteChannel(Path.of(resource.getFile()));
+    file = new BackingFile(Files.newByteChannel(Path.of(resource.getFile())));
   }
 
   @AfterEach
-  void tearDown() throws IOException {
+  void tearDown() {
     file.close();
     file = null;
   }
@@ -44,7 +44,7 @@ public class IntegrationTest {
   }
 
   @Test
-  void testDbinfo() throws IOException, StorageException, SQLException {
+  void testDbinfo() {
     var storage = new StorageEngine(file);
     var info = storage.getInfo();
     assertEquals(4096, info.get("database page size"));
@@ -52,7 +52,7 @@ public class IntegrationTest {
   }
 
   @Test
-  void testTables() throws SQLException, IOException, StorageException {
+  void testTables() {
     var storage = new StorageEngine(file);
     assertEquals(
         storage.getTables().stream().map(Table::name)

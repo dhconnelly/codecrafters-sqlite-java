@@ -6,7 +6,6 @@ import sqlite.sql.Parser;
 import sqlite.sql.SQLException;
 import sqlite.sql.Scanner;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -19,9 +18,7 @@ public class Index {
   private final AST.CreateIndexStatement definition;
 
   public Index(StorageEngine storage, String name, Table table,
-               Page.IndexPage root,
-               String schema)
-  throws SQLException {
+               Page.IndexPage root, String schema) {
     this.storage = storage;
     this.name = name;
     this.table = table;
@@ -34,37 +31,34 @@ public class Index {
   // TODO: move this into IndexedPage and make its generic type Comparable
   private static boolean contains(Pointer<Key> page, Value value) {
     // TODO: handle different collating functions
-    Optional<Value> left = page.left().get()
-                               .map(key -> key.indexKey.getFirst());
-    Optional<Value> right = page.right().get()
-                                .map(key -> key.indexKey.getFirst());
-    if (left.isPresent() && left.get().compareTo(value) > 0) {
-      return false;
-    }
-    return right.isEmpty() || right.get().compareTo(value) >= 0;
+    Optional<Value> left =
+        page.left().get().map(key -> key.indexKey.getFirst());
+    Optional<Value> right =
+        page.right().get().map(key -> key.indexKey.getFirst());
+    return (left.isEmpty() || left.get().compareTo(value) <= 0) &&
+           (right.isEmpty() || right.get().compareTo(value) >= 0);
   }
 
-  void collect(Page.IndexPage page, HashSet<Long> rows, Value filter)
-  throws StorageException, IOException {
+  void collect(Page.IndexPage page, HashSet<Long> rows, Value filter) {
     switch (page) {
-      case Page.IndexInteriorPage interior -> {
-        for (var indexedPage : interior.recordsIterable()) {
-          if (!contains(indexedPage, filter)) continue;
-          indexedPage.left().get().ifPresent(k -> {
-            if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
+      case Page.IndexInteriorPage interior -> interior
+          .records()
+          .filter(childPtr -> contains(childPtr, filter))
+          .forEach(childPtr -> {
+            childPtr.left().get()
+                    .filter(k -> k.indexKey.getFirst().equals(filter))
+                    .ifPresent(k -> rows.add(k.rowId));
+            childPtr.right().get()
+                    .filter(k -> k.indexKey.getFirst().equals(filter))
+                    .ifPresent(k -> rows.add(k.rowId));
+            var child = storage.getPage(childPtr.pageNumber()).asIndexPage();
+            collect(child, rows, filter);
           });
-          indexedPage.right().get().ifPresent(k -> {
-            if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
-          });
-          collect(storage.getPage(indexedPage.pageNumber()).asIndexPage(), rows,
-                  filter);
-        }
-      }
-      case Page.IndexLeafPage leaf -> {
-        for (var k : leaf.recordsIterable()) {
-          if (k.indexKey.getFirst().equals(filter)) rows.add(k.rowId);
-        }
-      }
+
+      case Page.IndexLeafPage leaf -> leaf
+          .records()
+          .filter(key -> key.indexKey.getFirst().equals(filter))
+          .forEach(key -> rows.add(key.rowId));
     }
   }
 
@@ -75,8 +69,7 @@ public class Index {
   // TODO: return a string
   public AST.CreateIndexStatement definition() {return definition;}
 
-  public List<Long> find(String column, Value value)
-  throws SQLException, IOException, StorageException {
+  public List<Long> find(String column, Value value) {
     if (!definition.column().equals(column)) {
       throw new SQLException(
           "index %s does not cover column %s".formatted(name, column));

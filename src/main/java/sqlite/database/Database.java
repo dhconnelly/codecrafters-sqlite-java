@@ -3,6 +3,7 @@ package sqlite.database;
 import sqlite.query.QueryEngine;
 import sqlite.query.Value;
 import sqlite.sql.SQLException;
+import sqlite.storage.BackingFile;
 import sqlite.storage.StorageEngine;
 import sqlite.storage.StorageException;
 import sqlite.storage.Table;
@@ -16,10 +17,10 @@ public class Database implements AutoCloseable {
   private static final System.Logger log = System.getLogger(
       Database.class.getCanonicalName());
 
-  private final SeekableByteChannel f;
+  private final BackingFile f;
 
   private Database(SeekableByteChannel f) {
-    this.f = f;
+    this.f = new BackingFile(f);
   }
 
   private static void die(Exception e) {

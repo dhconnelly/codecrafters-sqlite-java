@@ -12,22 +12,18 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   protected final Charset charset;
 
   protected abstract int headerSize();
-  protected abstract int numRecords();
+  public abstract int numRecords();
+
   protected abstract T parseRecord(int index, ByteBuffer buf);
 
   protected short cellOffset(int index) {
     return buf.position(base + headerSize() + index * 2).getShort();
   }
 
-  Stream<T> records() {
+  public Stream<T> records() {
     final var n = new AtomicInteger(0);
     return Stream.generate(() -> parseRecord(n.getAndIncrement(), buf))
                  .limit(numRecords());
-  }
-
-  // TODO: migrate callers to `records`
-  Iterable<T> recordsIterable() {
-    return records()::iterator;
   }
 
   protected Page(ByteBuffer buf, int base, Charset charset) {
@@ -37,7 +33,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     this.charset = charset;
   }
 
-  public static Page<?> from(ByteBuffer buf, int base, Charset charset) {
+  static Page<?> from(ByteBuffer buf, int base, Charset charset) {
     byte first = buf.position(base).get();
     return switch (first) {
       case 0x02 -> new IndexInteriorPage(buf, base, charset);
@@ -53,10 +49,10 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
   // Leaf and interior pages
   // =======================
 
-  public static sealed abstract class LeafPage<T>
+  static sealed abstract class LeafPage<T>
       extends Page<T>
       permits TableLeafPage, IndexLeafPage {
-    protected LeafPage(ByteBuffer buf, int base, Charset charset) {
+    private LeafPage(ByteBuffer buf, int base, Charset charset) {
       super(buf, base, charset);
     }
 
@@ -67,12 +63,12 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     public int numRecords() {return numCells;}
   }
 
-  public static sealed abstract class InteriorPage<T>
+  static sealed abstract class InteriorPage<T>
       extends Page<Pointer<T>>
       permits TableInteriorPage, IndexInteriorPage {
     private final int rightPage;
 
-    protected InteriorPage(ByteBuffer buf, int base, Charset charset) {
+    private InteriorPage(ByteBuffer buf, int base, Charset charset) {
       super(buf, base, charset);
       rightPage = buf.position(base + 8).getInt();
     }
@@ -170,7 +166,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     }
   }
 
-  public static final class IndexLeafPage
+  static final class IndexLeafPage
       extends LeafPage<Index.Key>
       implements IndexPage {
     IndexLeafPage(ByteBuffer buf, int base, Charset charset) {
@@ -191,7 +187,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     }
   }
 
-  public static final class IndexInteriorPage
+  static final class IndexInteriorPage
       extends InteriorPage<Index.Key>
       implements IndexPage {
     private IndexInteriorPage(ByteBuffer buf, int base, Charset charset) {

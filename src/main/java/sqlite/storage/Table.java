@@ -3,10 +3,8 @@ package sqlite.storage;
 import sqlite.query.Value;
 import sqlite.sql.AST;
 import sqlite.sql.Parser;
-import sqlite.sql.SQLException;
 import sqlite.sql.Scanner;
 
-import java.io.IOException;
 import java.util.*;
 
 public class Table {
@@ -15,9 +13,8 @@ public class Table {
   private final Page.TablePage root;
   private final AST.CreateTableStatement definition;
 
-  public Table(StorageEngine storage, String name, Page.TablePage root,
-               String schema)
-  throws SQLException {
+  Table(StorageEngine storage, String name, Page.TablePage root,
+        String schema) {
     this.storage = storage;
     this.name = name;
     this.root = root;
@@ -29,7 +26,6 @@ public class Table {
     return mods.contains("integer") && mods.contains("primary") &&
            mods.contains("key");
   }
-
 
   private Row parseRow(Page.Row row) {
     var record = new HashMap<String, Value>();
@@ -43,17 +39,17 @@ public class Table {
     return new Row(row.rowId(), record);
   }
 
-  private void collect(Page.TablePage page, List<Row> rows)
-  throws StorageException, IOException {
+  private void collect(Page.TablePage page, List<Row> rows) {
     switch (page) {
-      case Page.TableLeafPage leaf ->
-          leaf.records().map(this::parseRow).forEach(rows::add);
-      case Page.TableInteriorPage interior -> {
-        for (var indexedPage : interior.recordsIterable()) {
-          collect(storage.getPage(indexedPage.pageNumber()).asTablePage(),
-                  rows);
-        }
-      }
+      case Page.TableLeafPage leaf -> leaf
+          .records()
+          .map(this::parseRow)
+          .forEach(rows::add);
+
+      case Page.TableInteriorPage interior -> interior
+          .records()
+          .forEach(child -> collect(
+              storage.getPage(child.pageNumber()).asTablePage(), rows));
     }
   }
 
@@ -67,24 +63,21 @@ public class Table {
            rowId <= right.endpoint();
   }
 
-  private Optional<Row> lookup(Page.TablePage page, long rowId)
-  throws StorageException, IOException {
-    switch (page) {
-      case Page.TableInteriorPage interior -> {
-        for (var child : interior.recordsIterable()) {
-          if (contains(child, rowId)) {
-            return lookup(storage.getPage(child.pageNumber()).asTablePage(),
-                          rowId);
-          }
-        }
-      }
-      case Page.TableLeafPage leaf -> {
-        for (var record : leaf.recordsIterable()) {
-          if (record.rowId() == rowId) return Optional.of(parseRow(record));
-        }
-      }
-    }
-    return Optional.empty();
+  private Optional<Row> lookup(Page.TablePage page, long rowId) {
+    return switch (page) {
+      case Page.TableInteriorPage interior -> interior
+          .records()
+          .filter(child -> contains(child, rowId))
+          .findFirst()
+          .flatMap(child -> lookup(
+              storage.getPage(child.pageNumber()).asTablePage(), rowId));
+
+      case Page.TableLeafPage leaf -> leaf
+          .records()
+          .filter(child -> child.rowId() == rowId)
+          .map(this::parseRow)
+          .findFirst();
+    };
   }
 
   public record Row(long rowId, Map<String, Value> values) {
@@ -94,13 +87,13 @@ public class Table {
   public String name() {return name;}
 
   // TODO: stream
-  public List<Row> rows() throws StorageException, IOException {
+  public List<Row> rows() {
     var rows = new ArrayList<Row>();
     collect(root, rows);
     return rows;
   }
 
-  public Optional<Row> get(long rowId) throws IOException, StorageException {
+  public Optional<Row> get(long rowId) {
     return lookup(root, rowId);
   }
 }
