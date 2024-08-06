@@ -69,7 +69,7 @@ public class Index {
   // TODO: return a string
   public AST.CreateIndexStatement definition() {return definition;}
 
-  public List<Long> find(String column, Value value) {
+  public List<Long> findMatchingRecordIds(String column, Value value) {
     if (!definition.column().equals(column)) {
       throw new SQLException(
           "index %s does not cover column %s".formatted(name, column));
@@ -78,5 +78,4 @@ public class Index {
     collect(root, rows, value);
     return rows.stream().toList();
   }
-
 }

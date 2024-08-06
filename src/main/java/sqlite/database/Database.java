@@ -28,18 +28,17 @@ public class Database implements AutoCloseable {
     System.exit(1);
   }
 
-  public void close() throws IOException {
+  public void close() {
     f.close();
   }
 
-  private void dbinfo() throws IOException, StorageException, SQLException {
+  private void dbinfo() {
     var storage = new StorageEngine(f);
     storage.getInfo().forEach(
         (field, val) -> System.out.printf("%s: %s\n", field, val));
   }
 
-  private void tables()
-  throws IOException, StorageException, SQLException {
+  private void tables() {
     var storage = new StorageEngine(f);
     var names = storage.getTables().stream().map(Table::name)
                        .filter(name -> !name.startsWith("sqlite_"))
@@ -47,7 +46,7 @@ public class Database implements AutoCloseable {
     System.out.println(String.join(" ", names));
   }
 
-  private void schema() throws IOException, StorageException, SQLException {
+  private void schema() {
     var storage = new StorageEngine(f);
     for (var object : storage.getObjects()) {
       for (var entry : object.entrySet()) {
@@ -58,7 +57,7 @@ public class Database implements AutoCloseable {
     }
   }
 
-  private void indices() throws IOException, StorageException, SQLException {
+  private void indices() {
     var storage = new StorageEngine(f);
     for (var index : storage.getIndices()) {
       System.out.printf("index: %s\n".formatted(index.name()));

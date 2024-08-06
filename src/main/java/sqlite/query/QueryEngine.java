@@ -85,8 +85,9 @@ public class QueryEngine {
   throws SQLException, IOException, StorageException {
     Optional<Index> maybeIndex = findIndexForFilter(filter);
     if (maybeIndex.isPresent()) {
-      var rowIds = maybeIndex.get().find(filter.column().name(),
-                                         valueOf(filter.value()));
+      var rowIds = maybeIndex.get()
+                             .findMatchingRecordIds(filter.column().name(),
+                                                    valueOf(filter.value()));
       List<Table.Row> results = new ArrayList<>();
       for (long rowId : rowIds) {
         results.add(t.get(rowId).orElseThrow(() -> new AssertionError(
