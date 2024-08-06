@@ -6,15 +6,45 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
+  public enum Type {
+    TABLE_LEAF(0x0d),
+    TABLE_INTERIOR(0x05),
+    INDEX_LEAF(0x0a),
+    INDEX_INTERIOR(0x02);
+
+    public final byte value;
+
+    Type(int value) {
+      this.value = (byte) value;
+    }
+  }
+
+  public static short headerSize(Type type) {
+    return switch (type) {
+      case TABLE_INTERIOR, INDEX_INTERIOR -> 12;
+      case TABLE_LEAF, INDEX_LEAF -> 8;
+    };
+  }
+
   private final ByteBuffer buf;
   private final int base;
-  protected final short numCells;
-  protected final Charset charset;
+  private final short numCells;
+  private final Charset charset;
 
-  protected abstract int headerSize();
-  public abstract int numRecords();
+  protected Page(ByteBuffer buf, int base, Charset charset) {
+    this.base = base;
+    this.buf = buf;
+    this.numCells = buf.position(base + 3).getShort();
+    this.charset = charset;
+  }
 
-  protected abstract T parseRecord(int index, ByteBuffer buf);
+  protected short getNumCells() {
+    return numCells;
+  }
+
+  protected Charset getCharset() {
+    return charset;
+  }
 
   protected short cellOffset(int index) {
     return buf.position(base + headerSize() + index * 2).getShort();
@@ -26,22 +56,20 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
                  .limit(numRecords());
   }
 
-  protected Page(ByteBuffer buf, int base, Charset charset) {
-    this.base = base;
-    this.buf = buf;
-    this.numCells = buf.position(base + 3).getShort();
-    this.charset = charset;
-  }
+  // All page types must implement:
+  public abstract int numRecords();
+  protected abstract int headerSize();
+  protected abstract T parseRecord(int index, ByteBuffer buf);
 
   static Page<?> from(ByteBuffer buf, int base, Charset charset) {
-    byte first = buf.position(base).get();
-    return switch (first) {
+    byte type = buf.position(base).get();
+    return switch (type) {
       case 0x02 -> new IndexInteriorPage(buf, base, charset);
       case 0x05 -> new TableInteriorPage(buf, base, charset);
       case 0x0a -> new IndexLeafPage(buf, base, charset);
       case 0x0d -> new TableLeafPage(buf, base, charset);
       default ->
-          throw new StorageException("invalid page type: %x".formatted(first));
+          throw new StorageException("invalid page type: %x".formatted(type));
     };
   }
 
@@ -60,7 +88,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     protected int headerSize() {return 8;}
 
     @Override
-    public int numRecords() {return numCells;}
+    public int numRecords() {return getNumCells();}
   }
 
   static sealed abstract class InteriorPage<T>
@@ -77,7 +105,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
     protected int headerSize() {return 12;}
 
     @Override
-    public int numRecords() {return numCells + 1;}
+    public int numRecords() {return getNumCells() + 1;}
 
     protected record Cell<T>(int cellId, T payload) {}
 
@@ -89,7 +117,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
         var cell = parseCell(index, buf);
         return new Pointer<>(new Pointer.Unbounded<>(),
                              new Pointer.Bounded<>(cell.payload), cell.cellId);
-      } else if (index == numCells) {
+      } else if (index == getNumCells()) {
         var cell = parseCell(index - 1, buf);
         return new Pointer<>(new Pointer.Bounded<>(cell.payload),
                              new Pointer.Unbounded<>(), rightPage);
@@ -145,7 +173,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
       var payload = new byte[(int) payloadSize.value()];
       buf.position(offset).get(payload);
       // TODO: overflow pages
-      return new Row(rowId.value(), Record.parse(payload, charset));
+      return new Row(rowId.value(), Record.parse(payload, getCharset()));
     }
   }
 
@@ -158,7 +186,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
 
     @Override
     protected Cell<Long> parseCell(int index, ByteBuffer buf) {
-      if (index >= numCells) throw new AssertionError("index < numCells");
+      if (index >= getNumCells()) throw new AssertionError("index < numCells");
       int offset = cellOffset(index);
       int pageNumber = buf.position(offset).getInt();
       var rowId = VarInt.parseFrom(buf.position(offset + 4));
@@ -175,13 +203,13 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
 
     @Override
     protected Index.Key parseRecord(int index, ByteBuffer buf) {
-      if (index >= numCells) throw new AssertionError("index < numCells");
+      if (index >= getNumCells()) throw new AssertionError("index < numCells");
       int offset = cellOffset(index);
       var payloadSize = VarInt.parseFrom(buf.position(offset));
       offset += payloadSize.size();
       var payload = new byte[(int) payloadSize.value()];
       buf.position(offset).get(payload);
-      var record = Record.parse(payload, charset);
+      var record = Record.parse(payload, getCharset());
       var rowId = record.values().removeLast();
       return new Index.Key(record.values(), rowId.getInt());
     }
@@ -196,7 +224,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
 
     @Override
     protected Cell<Index.Key> parseCell(int index, ByteBuffer buf) {
-      if (index >= numCells) throw new AssertionError("index < numCells");
+      if (index >= getNumCells()) throw new AssertionError("index < numCells");
       int offset = cellOffset(index);
       int pageNumber = buf.position(offset).getInt();
       offset += 4;
@@ -204,7 +232,7 @@ public sealed abstract class Page<T> permits Page.LeafPage, Page.InteriorPage {
       offset += payloadSize.size();
       var payload = new byte[(int) payloadSize.value()];
       buf.position(offset).get(payload);
-      var record = Record.parse(payload, charset);
+      var record = Record.parse(payload, getCharset());
       var rowId = record.values().removeLast();
       return new Cell<>(pageNumber,
                         new Index.Key(record.values(), rowId.getInt()));
